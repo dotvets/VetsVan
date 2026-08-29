@@ -33,7 +33,8 @@ export async function createInvoice({ bookingCode, customerName, mobile, email, 
     ErrorUrl: site + '/api/payments/error',
     Language: 'ar',
     CustomerReference: bookingCode,
-    UserDefinedField: serviceName || 'VetsVan Service',
+    // Comment shown on the MyFatoorah invoice: booking link + WhatsApp
+    UserDefinedField: `${serviceName || 'VetsVan Service'} | حجز: ${site}/#booking-${bookingCode} | واتساب: https://wa.me/${process.env.WHATSAPP_NUMBER || '966920011626'}`,
   });
   if (!r.IsSuccess) throw new Error(r.Message || 'myfatoorah_error');
   return { invoiceId: String(r.Data.InvoiceId), invoiceUrl: r.Data.InvoiceURL };

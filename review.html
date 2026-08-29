@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>قيّم تجربتك — VetsVan</title>
+<style>
+  * { box-sizing: border-box; font-family: Tahoma, Arial, sans-serif; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #f3effc, #e8f4f8); padding: 20px; }
+  .card { background: #fff; max-width: 460px; width: 100%; border-radius: 16px; padding: 32px; box-shadow: 0 10px 40px rgba(91,63,168,.15); text-align: center; }
+  h1 { color: #5b3fa8; font-size: 22px; margin: 0 0 6px; }
+  p.sub { color: #777; font-size: 14px; margin: 0 0 20px; }
+  .stars { font-size: 44px; direction: ltr; margin: 10px 0 18px; }
+  .stars span { cursor: pointer; color: #ddd; transition: .15s; }
+  .stars span.on { color: #f5b301; }
+  textarea { width: 100%; min-height: 100px; border: 1px solid #ddd; border-radius: 10px; padding: 12px; font-size: 14px; resize: vertical; }
+  button { margin-top: 16px; width: 100%; background: #5b3fa8; color: #fff; border: 0; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .msg { margin-top: 14px; font-size: 14px; }
+  .err { color: #c0392b; } .okc { color: #27ae60; }
+  .wa { display: inline-block; margin-top: 14px; color: #25d366; font-weight: bold; text-decoration: none; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>قيّم تجربتك مع VetsVan ⭐</h1>
+  <p class="sub">رقم الحجز: <b id="codeLabel">—</b></p>
+  <div id="formArea">
+    <div class="stars" id="stars">
+      <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+    </div>
+    <textarea id="comment" placeholder="اكتب تعليقك (اختياري)…"></textarea>
+    <button id="submitBtn" disabled>إرسال التقييم</button>
+  </div>
+  <div class="msg" id="msg"></div>
+  <a class="wa" id="waLink" target="_blank" href="#">أو قيّمنا عبر واتساب 💬</a>
+</div>
+<script>
+const code = new URLSearchParams(location.search).get('code') || '';
+document.getElementById('codeLabel').textContent = code || 'غير معروف';
+document.getElementById('waLink').href = 'https://wa.me/966920011626?text=' + encodeURIComponent('تقييمي للحجز ' + code + ': ');
+let rating = 0;
+const stars = [...document.querySelectorAll('#stars span')];
+const btn = document.getElementById('submitBtn');
+stars.forEach(s => s.addEventListener('click', () => {
+  rating = Number(s.dataset.v);
+  stars.forEach(x => x.classList.toggle('on', Number(x.dataset.v) <= rating));
+  btn.disabled = false;
+}));
+btn.addEventListener('click', async () => {
+  const msg = document.getElementById('msg');
+  btn.disabled = true; msg.textContent = '';
+  try {
+    const r = await fetch('/api/reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booking_code: code, rating, comment: document.getElementById('comment').value }) });
+    const d = await r.json();
+    if (r.ok) { document.getElementById('formArea').style.display = 'none'; msg.className = 'msg okc'; msg.textContent = 'شكرًا لك! تم استلام تقييمك بنجاح 💜'; }
+    else { msg.className = 'msg err'; msg.textContent = d.error === 'already reviewed' ? 'تم تقييم هذا الحجز مسبقًا' : (d.error === 'booking not found' ? 'رقم الحجز غير صحيح' : 'حدث خطأ، حاول مرة أخرى'); btn.disabled = false; }
+  } catch { msg.className = 'msg err'; msg.textContent = 'تعذر الاتصال بالخادم'; btn.disabled = false; }
+});
+(async () => {
+  if (!code) { document.getElementById('formArea').style.display = 'none'; document.getElementById('msg').textContent = 'رابط غير صالح — رقم الحجز مفقود'; document.getElementById('msg').className = 'msg err'; return; }
+  try {
+    const r = await fetch('/api/reviews/check?code=' + encodeURIComponent(code));
+    const d = await r.json();
+    if (!r.ok) { document.getElementById('formArea').style.display = 'none'; document.getElementById('msg').textContent = 'رقم الحجز غير صحيح'; document.getElementById('msg').className = 'msg err'; }
+    else if (d.already_reviewed) { document.getElementById('formArea').style.display = 'none'; document.getElementById('msg').textContent = 'تم تقييم هذا الحجز مسبقًا — شكرًا لك 💜'; document.getElementById('msg').className = 'msg okc'; }
+  } catch {}
+})();
+</script>
+</body>
+</html>

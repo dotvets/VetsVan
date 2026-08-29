@@ -32,6 +32,7 @@
   <div data-t="payments">المدفوعات</div>
   <div data-t="services">الخدمات والأسعار</div>
   <div data-t="messages">الرسائل</div>
+  <div data-t="reviews">التقييمات</div>
   <div data-t="content">محتوى الموقع</div>
   <div data-t="settings">الإعدادات</div>
   <div id="logout" style="margin-top:40px">تسجيل خروج</div>
@@ -131,6 +132,14 @@ async function show(t) {
     main.innerHTML = `<div class="card"><h3>الرسائل (${rows.length})</h3>
       ${rows.map(m => `<div class="card" style="background:${m.status==='unread'?'#fdf3fb':'#fafafa'}"><b>${esc(m.name)}</b> — ${esc(m.mobile||'')} ${esc(m.email||'')}<br>${esc(m.message)}<br><small style="color:#999">${esc((m.created_at||'').slice(0,16))}</small></div>`).join('') || '<p>لا رسائل.</p>'}</div>`;
   }
+  if (t === 'reviews') {
+    const rows = await api('/api/admin/reviews');
+    const avg = rows.length ? (rows.reduce((a, r) => a + r.rating, 0) / rows.length).toFixed(1) : '—';
+    main.innerHTML = `<div class="card"><h3>التقييمات (${rows.length}) — المتوسط: ${avg} ⭐</h3>
+      <table><tr><th>الحجز</th><th>العميل</th><th>الخدمة</th><th>التقييم</th><th>التعليق</th><th>التاريخ</th></tr>
+      ${rows.map(r => `<tr><td>${esc(r.booking_code)}</td><td>${esc(r.customer_name||'—')}</td><td>${esc(r.service_name_ar||r.service_name||'—')}</td>
+        <td style="color:#f5b301;font-size:18px">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</td><td>${esc(r.comment||'—')}</td><td>${esc((r.created_at||'').slice(0,10))}</td></tr>`).join('') || '<tr><td colspan="6">لا تقييمات بعد.</td></tr>'}</table></div>`;
+  }
   if (t === 'content') {
     const rows = await api('/api/content');
     main.innerHTML = `<div class="card"><h3>محتوى الموقع</h3>
@@ -162,13 +171,20 @@ async function show(t) {
     };
   }
 }
+function waReviewLink(b) {
+  let m = String(b.mobile||'').replace(/\D/g,'').replace(/^0/,'966');
+  if (!m.startsWith('966')) m = '966' + m;
+  const txt = encodeURIComponent(`عزيزنا ${b.customer_name}، شكرًا لثقتك بـ VetsVan 💜 يسعدنا تقييمك للخدمة (حجز ${b.booking_code}): ${location.origin}/review.html?code=${b.booking_code}`);
+  return `https://wa.me/${m}?text=${txt}`;
+}
 function bookingTable(rows, editable) {
   if (!rows || !rows.length) return '<p>لا حجوزات.</p>';
-  return `<table><tr><th>الكود</th><th>العميل</th><th>الجوال</th><th>الخدمة</th><th>التاريخ</th><th>الدفع</th><th>الحالة</th></tr>
+  return `<table><tr><th>الكود</th><th>العميل</th><th>الجوال</th><th>الخدمة</th><th>التاريخ</th><th>الدفع</th><th>الحالة</th><th>تقييم</th></tr>
     ${rows.map(b => `<tr><td>${esc(b.booking_code)}</td><td>${esc(b.customer_name)}</td><td>${esc(b.mobile)}</td><td>${esc(b.service_name||'—')}</td>
     <td>${esc(b.appointment_date ? String(b.appointment_date).slice(0,10) : '—')}</td>
     <td><span class="badge ${b.payment_status||'unpaid'}">${b.payment_status||'unpaid'}</span></td>
-    <td>${editable ? `<select data-bid="${b.id}">${['new','pending','confirmed','completed','cancelled'].map(s => `<option ${s===b.status?'selected':''}>${s}</option>`).join('')}</select>` : esc(b.status)}</td></tr>`).join('')}</table>`;
+    <td>${editable ? `<select data-bid="${b.id}">${['new','pending','confirmed','completed','cancelled'].map(s => `<option ${s===b.status?'selected':''}>${s}</option>`).join('')}</select>` : esc(b.status)}</td>
+    <td>${b.status==='completed' ? `<a class="btn" style="background:#25d366;text-decoration:none" target="_blank" href="${waReviewLink(b)}">إرسال طلب تقييم 💬</a>` : ''}</td></tr>`).join('')}</table>`;
 }
 document.querySelectorAll('.side div[data-t]').forEach(d => d.onclick = () => show(d.dataset.t));
 document.getElementById('logout').onclick = () => { localStorage.removeItem('vv_token'); location.href = '/admin/login'; };

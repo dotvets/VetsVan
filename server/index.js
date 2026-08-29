@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import pg from 'pg';
 import { requirePermission, ROLES, normalizeRole } from './rbac.js';
 import { paymentConfigured, createInvoice, verifyPayment } from './payments.js';
+import { sendPaymentConfirmationEmail } from './email.js';
 
 const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -27,8 +28,9 @@ async function bootstrap() {
   CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, name TEXT NOT NULL, mobile TEXT, email TEXT, subject TEXT, message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'unread', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
   CREATE TABLE IF NOT EXISTS site_content (id SERIAL PRIMARY KEY, content_key TEXT UNIQUE NOT NULL, value_en TEXT NOT NULL DEFAULT '', value_ar TEXT NOT NULL DEFAULT '', updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
   CREATE TABLE IF NOT EXISTS site_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '', updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());`);
-  await query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'unpaid', ADD COLUMN IF NOT EXISTS invoice_id TEXT, ADD COLUMN IF NOT EXISTS invoice_url TEXT, ADD COLUMN IF NOT EXISTS payment_id TEXT, ADD COLUMN IF NOT EXISTS amount NUMERIC(10,2), ADD COLUMN IF NOT EXISTS service_price NUMERIC(10,2), ADD COLUMN IF NOT EXISTS invoice_amount NUMERIC(10,2), ADD COLUMN IF NOT EXISTS payment_method TEXT, ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ, ADD COLUMN IF NOT EXISTS transaction_date TEXT, ADD COLUMN IF NOT EXISTS verification_status TEXT NOT NULL DEFAULT 'unverified'`);
+  await query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'unpaid', ADD COLUMN IF NOT EXISTS invoice_id TEXT, ADD COLUMN IF NOT EXISTS invoice_url TEXT, ADD COLUMN IF NOT EXISTS payment_id TEXT, ADD COLUMN IF NOT EXISTS amount NUMERIC(10,2), ADD COLUMN IF NOT EXISTS service_price NUMERIC(10,2), ADD COLUMN IF NOT EXISTS invoice_amount NUMERIC(10,2), ADD COLUMN IF NOT EXISTS payment_method TEXT, ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ, ADD COLUMN IF NOT EXISTS transaction_date TEXT, ADD COLUMN IF NOT EXISTS verification_status TEXT NOT NULL DEFAULT 'unverified', ADD COLUMN IF NOT EXISTS confirmation_email_sent BOOLEAN NOT NULL DEFAULT FALSE`);
   await query(`ALTER TABLE services ADD COLUMN IF NOT EXISTS price_updated_at TIMESTAMPTZ`);
+  await query(`CREATE TABLE IF NOT EXISTS reviews (id SERIAL PRIMARY KEY, booking_code TEXT UNIQUE NOT NULL REFERENCES bookings(booking_code) ON DELETE CASCADE, rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5), comment TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
   const admin = await query('SELECT id FROM admins LIMIT 1');
   if (!admin.rows.length && process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) { const hash=await bcrypt.hash(process.env.ADMIN_PASSWORD,12); await query('INSERT INTO admins(name,email,password_hash,role) VALUES($1,$2,$3,$4)',[process.env.ADMIN_NAME||'Admin',process.env.ADMIN_EMAIL.toLowerCase(),hash,'super_admin']); }
 }
@@ -37,6 +39,19 @@ async function audit(req,action,resource,details={}){if(pool&&req.user)await que
 const protect=p=>[auth,requirePermission(p)];
 app.post('/api/auth/login',async(req,res)=>{try{const{email,password}=req.body;if(!email||!password)return res.status(400).json({error:'Email and password are required'});const r=await query('SELECT * FROM admins WHERE LOWER(email)=LOWER($1) AND active=true LIMIT 1',[email]);if(!r.rows.length||!(await bcrypt.compare(password,r.rows[0].password_hash)))return res.status(401).json({error:'Invalid credentials'});const a=r.rows[0];const token=jwt.sign({id:a.id,email:a.email,name:a.name,role:normalizeRole(a.role)},JWT_SECRET,{expiresIn:'12h'});res.json({token,user:{id:a.id,name:a.name,email:a.email,role:normalizeRole(a.role)}});}catch(e){res.status(500).json({error:e.message});}});
 app.get('/api/health',(_req,res)=>res.json({ok:true,database:!!pool}));
+// ===== Reviews: public submit (one per booking) + admin list =====
+app.get('/api/reviews/check',async(req,res)=>{try{const code=String(req.query.code||'');if(!code)return res.status(400).json({error:'code required'});const b=await query('SELECT booking_code,customer_name,service_id FROM bookings WHERE booking_code=$1',[code]);if(!b.rows.length)return res.status(404).json({error:'booking not found'});const r=await query('SELECT id FROM reviews WHERE booking_code=$1',[code]);res.json({ok:true,already_reviewed:r.rows.length>0});}catch(e){res.status(500).json({error:e.message});}});
+app.post('/api/reviews',async(req,res)=>{try{const{booking_code,rating,comment=''}=req.body||{};const rt=Number(rating);if(!booking_code||!(rt>=1&&rt<=5))return res.status(400).json({error:'booking_code and rating (1-5) required'});const b=await query('SELECT booking_code FROM bookings WHERE booking_code=$1',[booking_code]);if(!b.rows.length)return res.status(404).json({error:'booking not found'});await query('INSERT INTO reviews(booking_code,rating,comment) VALUES($1,$2,$3)',[booking_code,rt,String(comment).slice(0,1000)]);res.status(201).json({ok:true});}catch(e){res.status(e.code==='23505'?409:500).json({error:e.code==='23505'?'already reviewed':e.message});}});
+app.get('/api/admin/reviews',...protect('bookings:read'),async(_req,res)=>{try{res.json((await query('SELECT r.*,b.customer_name,s.name_ar AS service_name_ar,s.name_en AS service_name FROM reviews r LEFT JOIN bookings b ON b.booking_code=r.booking_code LEFT JOIN services s ON s.id=b.service_id ORDER BY r.created_at DESC')).rows);}catch(e){res.status(500).json({error:e.message});}});
+// Send payment confirmation email exactly once, when a booking transitions to paid.
+async function notifyIfNewlyPaid(bookingCode){
+  try{
+    const r=await query(`SELECT b.*,s.name_en AS service_name,s.name_ar AS service_name_ar FROM bookings b LEFT JOIN services s ON s.id=b.service_id WHERE b.booking_code=$1 AND b.payment_status='paid' AND b.verification_status='verified' AND b.confirmation_email_sent=false`,[bookingCode]);
+    if(!r.rows.length)return;
+    const sent=await sendPaymentConfirmationEmail(r.rows[0]);
+    if(sent)await query('UPDATE bookings SET confirmation_email_sent=true WHERE booking_code=$1',[bookingCode]);
+  }catch(e){console.error('notifyIfNewlyPaid:',e.message);}
+}
 app.get('/api/admin/me',auth,(req,res)=>res.json({user:req.user,permissions:ROLES[normalizeRole(req.user.role)]||[]}));
 app.get('/api/dashboard',...protect('dashboard:read'),async(_req,res)=>{try{const[t,p,c,m,recent]=await Promise.all([query('SELECT COUNT(*)::int AS n FROM bookings'),query("SELECT COUNT(*)::int AS n FROM bookings WHERE status IN ('new','pending')"),query("SELECT COUNT(*)::int AS n FROM bookings WHERE status='completed'"),query("SELECT COUNT(*)::int AS n FROM messages WHERE status='unread'"),query('SELECT b.*,s.name_en AS service_name FROM bookings b LEFT JOIN services s ON s.id=b.service_id ORDER BY b.created_at DESC LIMIT 8')]);res.json({stats:{total:t.rows[0].n,pending:p.rows[0].n,completed:c.rows[0].n,unreadMessages:m.rows[0].n},recent:recent.rows});}catch(e){res.status(500).json({error:e.message});}});
 app.get('/api/bookings',...protect('bookings:read'),async(req,res)=>{try{const q=String(req.query.search||'').trim(),status=String(req.query.status||'').trim(),p=[],w=[];if(q){p.push(`%${q}%`);w.push(`(b.customer_name ILIKE $${p.length} OR b.pet_name ILIKE $${p.length} OR b.booking_code ILIKE $${p.length})`);}if(status){p.push(status);w.push(`b.status=$${p.length}`);}const sql=`SELECT b.*,s.name_en AS service_name FROM bookings b LEFT JOIN services s ON s.id=b.service_id ${w.length?'WHERE '+w.join(' AND '):''} ORDER BY b.appointment_date DESC NULLS LAST,b.created_at DESC`;res.json((await query(sql,p)).rows);}catch(e){res.status(500).json({error:e.message});}});
@@ -116,6 +131,7 @@ app.get('/api/payments/callback', async (req, res) => {
         ok = finalStatus === 'paid';
         await query(`UPDATE bookings SET payment_status=$1, payment_id=$2, payment_method=$3, transaction_date=$4, verification_status=$5, paid_at=$6, status=CASE WHEN $1='paid' AND status='pending_payment' THEN 'confirmed' ELSE status END, updated_at=NOW() WHERE booking_code=$7`,
           [finalStatus, pid, v.paymentMethod, v.transactionDate, v.verified && amountOk ? 'verified' : 'failed', v.verified && amountOk ? new Date().toISOString() : null, v.bookingCode]);
+        if (ok) await notifyIfNewlyPaid(v.bookingCode);
       }
     }
   } catch {}
@@ -144,6 +160,7 @@ app.post('/api/payments/webhook', async (req, res) => {
       const finalStatus = v.verified ? 'paid' : v.status;
       await query(`UPDATE bookings SET payment_status=$1, payment_id=$2, payment_method=$3, transaction_date=$4, verification_status=$5, paid_at=$6, status=CASE WHEN $1='paid' AND status='pending_payment' THEN 'confirmed' ELSE status END, updated_at=NOW() WHERE booking_code=$7`,
         [finalStatus, String(pid), v.paymentMethod, v.transactionDate, v.verified ? 'verified' : 'failed', v.verified ? new Date().toISOString() : null, v.bookingCode]);
+      if (v.verified) await notifyIfNewlyPaid(v.bookingCode);
     }
   } catch {}
 });
@@ -165,6 +182,7 @@ app.post('/api/admin/payments/:bookingCode/verify', ...protect('bookings:write')
     const finalStatus = v.verified ? 'paid' : v.status;
     await query(`UPDATE bookings SET payment_status=$1, payment_method=$2, transaction_date=$3, verification_status=$4, paid_at=$5, status=CASE WHEN $1='paid' AND status='pending_payment' THEN 'confirmed' ELSE status END, updated_at=NOW() WHERE booking_code=$6`,
       [finalStatus, v.paymentMethod, v.transactionDate, v.verified ? 'verified' : 'failed', v.verified ? new Date().toISOString() : null, req.params.bookingCode]);
+    if (v.verified) await notifyIfNewlyPaid(req.params.bookingCode);
     res.json({ ok: true, status: finalStatus, verification: v.verified ? 'verified' : 'failed' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
