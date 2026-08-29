@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import pg from 'pg';
 import { requirePermission, ROLES, normalizeRole } from './rbac.js';
 import { paymentConfigured, createInvoice, verifyPayment } from './payments.js';
-import { sendPaymentConfirmationEmail } from './email.js';
+import { sendPaymentConfirmationEmail, sendBookingNotificationEmail } from './email.js';
 
 const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -57,6 +57,10 @@ app.get('/api/dashboard',...protect('dashboard:read'),async(_req,res)=>{try{cons
 app.get('/api/bookings',...protect('bookings:read'),async(req,res)=>{try{const q=String(req.query.search||'').trim(),status=String(req.query.status||'').trim(),p=[],w=[];if(q){p.push(`%${q}%`);w.push(`(b.customer_name ILIKE $${p.length} OR b.pet_name ILIKE $${p.length} OR b.booking_code ILIKE $${p.length})`);}if(status){p.push(status);w.push(`b.status=$${p.length}`);}const sql=`SELECT b.*,s.name_en AS service_name FROM bookings b LEFT JOIN services s ON s.id=b.service_id ${w.length?'WHERE '+w.join(' AND '):''} ORDER BY b.appointment_date DESC NULLS LAST,b.created_at DESC`;res.json((await query(sql,p)).rows);}catch(e){res.status(500).json({error:e.message});}});
 app.post('/api/bookings',async(req,res)=>{try{
   const b=req.body, code='VV-'+Date.now().toString().slice(-7);
+  // Server-side validation of required fields
+  if(!b.customer_name||!String(b.customer_name).trim())return res.status(400).json({error:'الاسم مطلوب'});
+  if(!b.mobile||!String(b.mobile).trim())return res.status(400).json({error:'رقم الجوال مطلوب'});
+  if(b.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(b.email)))return res.status(400).json({error:'صيغة البريد الإلكتروني غير صحيحة'});
   // Price resolved SERVER-SIDE from services table — frontend amount is never trusted.
   let svc=null, price=null;
   if(b.service_id){ const sr=await query('SELECT * FROM services WHERE id=$1 AND active=true',[b.service_id]); if(sr.rows.length){ svc=sr.rows[0]; price=svc.price!==null?Number(svc.price):null; } }
@@ -65,14 +69,17 @@ app.post('/api/bookings',async(req,res)=>{try{
   const r=await query(`INSERT INTO bookings(booking_code,customer_name,mobile,email,pet_type,pet_name,breed,age,gender,service_id,area,address,directions,appointment_date,appointment_time,status,service_price,payment_status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
     [code,b.customer_name,b.mobile,b.email||null,b.pet_type||null,b.pet_name||null,b.breed||null,b.age||null,b.gender||null,svc?svc.id:(b.service_id||null),b.area||null,b.address||null,b.directions||null,b.appointment_date||null,b.appointment_time||null,status,price,needsPayment?'pending':'unpaid']);
   const booking=r.rows[0];
+  // Notify clinic/admin by email (Reply-To = customer). Failure is logged server-side
+  // and never fails the booking or exposes SMTP details to the client.
+  const emailSent=await sendBookingNotificationEmail({...booking,service_name:svc?svc.name_en:null,service_name_ar:svc?svc.name_ar:null});
   if(needsPayment){
     try{
       const inv=await createInvoice({bookingCode:code,customerName:b.customer_name,mobile:b.mobile,email:b.email,amount:price,serviceName:svc?svc.name_en:''});
       await query('UPDATE bookings SET invoice_id=$1,invoice_url=$2,invoice_amount=$3 WHERE id=$4',[inv.invoiceId,inv.invoiceUrl,price,booking.id]);
-      return res.status(201).json({...booking,invoice_url:inv.invoiceUrl,invoice_amount:price,requires_payment:true});
-    }catch(e){ await query("UPDATE bookings SET status='new',payment_status='unpaid' WHERE id=$1",[booking.id]); return res.status(201).json({...booking,requires_payment:false,payment_error:String(e.message)}); }
+      return res.status(201).json({...booking,invoice_url:inv.invoiceUrl,invoice_amount:price,requires_payment:true,email_sent:emailSent});
+    }catch(e){ await query("UPDATE bookings SET status='new',payment_status='unpaid' WHERE id=$1",[booking.id]); return res.status(201).json({...booking,requires_payment:false,payment_error:String(e.message),email_sent:emailSent}); }
   }
-  res.status(201).json({...booking,requires_payment:false});
+  res.status(201).json({...booking,requires_payment:false,email_sent:emailSent});
 }catch(e){res.status(500).json({error:e.message});}});
 app.patch('/api/bookings/:id',...protect('bookings:write'),async(req,res)=>{try{const{status,admin_notes}=req.body,r=await query('UPDATE bookings SET status=COALESCE($1,status),admin_notes=COALESCE($2,admin_notes),updated_at=NOW() WHERE id=$3 RETURNING *',[status,admin_notes,req.params.id]);await audit(req,'update','booking',{id:req.params.id,status});res.json(r.rows[0]);}catch(e){res.status(500).json({error:e.message});}});
 app.get('/api/services',async(_req,res)=>{try{res.json((await query('SELECT * FROM services WHERE active=true ORDER BY sort_order,id')).rows);}catch(e){res.status(500).json({error:e.message});}});
