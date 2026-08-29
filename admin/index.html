@@ -67,19 +67,64 @@ async function show(t) {
     });
   }
   if (t === 'payments') {
-    const rows = await api('/api/admin/payments');
-    main.innerHTML = `<div class="card"><h3>المدفوعات (${rows.length})</h3><table><tr><th>الكود</th><th>العميل</th><th>الجوال</th><th>المبلغ</th><th>الحالة</th><th>الفاتورة</th><th>التاريخ</th></tr>
-      ${rows.map(p => `<tr><td>${esc(p.booking_code)}</td><td>${esc(p.customer_name)}</td><td>${esc(p.mobile)}</td><td>${p.amount ?? '—'} ريال</td>
-      <td><span class="badge ${p.payment_status}">${p.payment_status}</span></td>
-      <td>${p.invoice_url ? `<a href="${esc(p.invoice_url)}" target="_blank">فتح</a>` : '—'}</td>
-      <td>${esc((p.created_at||'').slice(0,10))}</td></tr>`).join('')}</table></div>`;
+    const filter = window._payFilter || '';
+    const rows = await api('/api/admin/payments' + (filter ? '?status=' + filter : ''));
+    const counts = {};
+    (await api('/api/admin/payments')).forEach(r => counts[r.payment_status] = (counts[r.payment_status]||0)+1);
+    const stBadge = s => ({pending:'🟡 Pending Payment',paid:'🟢 Paid',failed:'🔴 Failed',cancelled:'⚪ Cancelled',verification_required:'🟠 Verification Required',unpaid:'⚪ Unpaid'}[s]||s);
+    main.innerHTML = `<div class="card"><h3>المدفوعات</h3>
+      <div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap">
+        ${['','pending','paid','failed','cancelled','verification_required'].map(f => `<button class="btn" style="${filter===f?'':'background:#ddd;color:#333'}" data-f="${f}">${f===''?'الكل':stBadge(f)}</button>`).join('')}
+      </div>
+      <table><tr><th>Order ID</th><th>العميل</th><th>الخدمة</th><th>سعر الخدمة</th><th>قيمة الفاتورة</th><th>Invoice ID</th><th>Payment Method</th><th>الحالة</th><th>التحقق</th><th>تاريخ العملية</th><th></th></tr>
+      ${rows.map(p => `<tr>
+        <td>${esc(p.booking_code)}</td><td>${esc(p.customer_name)}<br><small style="color:#999">${esc(p.mobile)}</small></td>
+        <td>${esc(p.service_name_ar || p.service_name || '—')}</td><td>${p.service_price ?? '—'}</td><td>${p.invoice_amount ?? '—'} ريال</td>
+        <td>${esc(p.invoice_id || '—')}</td><td>${esc(p.payment_method || '—')}</td>
+        <td><span class="badge ${p.payment_status}">${stBadge(p.payment_status)}</span></td>
+        <td>${p.verification_status === 'verified' ? '✅ موثق' : p.verification_status === 'failed' ? '❌' : '—'}</td>
+        <td>${esc(p.transaction_date || (p.paid_at||'').slice(0,10) || '—')}</td>
+        <td>${p.payment_id ? `<button class="btn" data-verify="${esc(p.booking_code)}">إعادة تحقق</button>` : ''}</td>
+      </tr>`).join('')}</table></div>`;
+    main.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { window._payFilter = b.dataset.f || undefined; show('payments'); });
+    main.querySelectorAll('[data-verify]').forEach(b => b.onclick = async () => {
+      b.textContent = '…'; const r = await api('/api/admin/payments/' + b.dataset.verify + '/verify', { method: 'POST' });
+      show('payments');
+    });
   }
   if (t === 'services') {
-    const rows = await api('/api/admin/services').catch(() => api('/api/services'));
-    main.innerHTML = `<div class="card"><h3>الخدمات والأسعار</h3>
-      <table><tr><th>الاسم (EN)</th><th>الاسم (AR)</th><th>السعر (ريال)</th><th>فعّالة</th></tr>
-      ${(rows||[]).map(s => `<tr><td>${esc(s.name_en)}</td><td>${esc(s.name_ar)}</td><td>${s.price ?? '—'}</td><td>${s.active ? '✅' : '❌'}</td></tr>`).join('')}</table>
-      <p style="color:#888;font-size:13px">الخدمة التي لها سعر سيظهر للعميل زر «ادفع الآن» تلقائياً بعد الحجز.</p></div>`;
+    const rows = await api('/api/admin/services').catch(() => []);
+    main.innerHTML = `<div class="card"><h3>Services → Pricing</h3>
+      <p style="color:#888;font-size:13px">الأسعار هنا هي المصدر الوحيد — الموقع والفواتير يقرآن منها مباشرة. تعديل السعر لا يؤثر على الطلبات القديمة.</p>
+      <table><tr><th>الاسم (EN)</th><th>الاسم (AR)</th><th>السعر (ريال)</th><th>فعّالة</th><th>آخر تعديل للسعر</th><th></th></tr>
+      ${rows.map(svc => `<tr>
+        <td><input value="${esc(svc.name_en)}" data-sid="${svc.id}" data-f="name_en"></td>
+        <td><input value="${esc(svc.name_ar)}" data-sid="${svc.id}" data-f="name_ar"></td>
+        <td><input type="number" min="0" step="0.01" value="${svc.price ?? ''}" data-sid="${svc.id}" data-f="price" style="width:110px"></td>
+        <td><input type="checkbox" ${svc.active ? 'checked' : ''} data-sid="${svc.id}" data-f="active" style="width:auto"></td>
+        <td style="font-size:12px;color:#999">${svc.price_updated_at ? esc(String(svc.price_updated_at).slice(0,16).replace('T',' ')) : '—'}</td>
+        <td><button class="btn" data-save="${svc.id}">حفظ</button></td>
+      </tr>`).join('')}</table>
+      <h4 style="margin-top:20px">إضافة خدمة جديدة</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr 130px;gap:8px">
+        <input id="ns_en" placeholder="Name (EN)"><input id="ns_ar" placeholder="الاسم (AR)"><input id="ns_price" type="number" min="0" placeholder="السعر">
+      </div>
+      <button class="btn" id="ns_add">إضافة</button></div>`;
+    main.querySelectorAll('[data-save]').forEach(b => b.onclick = async () => {
+      const id = b.dataset.save;
+      const body = {};
+      main.querySelectorAll(`[data-sid="${id}"]`).forEach(i => {
+        body[i.dataset.f] = i.type === 'checkbox' ? i.checked : (i.type === 'number' ? (i.value === '' ? null : Number(i.value)) : i.value);
+      });
+      b.textContent = '…';
+      await api('/api/admin/services/' + id, { method: 'PATCH', body: JSON.stringify(body) });
+      show('services');
+    });
+    document.getElementById('ns_add').onclick = async () => {
+      const en = document.getElementById('ns_en').value; if (!en) return;
+      await api('/api/admin/services', { method: 'POST', body: JSON.stringify({ name_en: en, name_ar: document.getElementById('ns_ar').value, price: document.getElementById('ns_price').value || null }) });
+      show('services');
+    };
   }
   if (t === 'messages') {
     const rows = await api('/api/admin/messages');

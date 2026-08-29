@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import pg from 'pg';
 import { requirePermission, ROLES, normalizeRole } from './rbac.js';
+import { paymentConfigured, createInvoice, verifyPayment } from './payments.js';
 
 const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -26,7 +27,8 @@ async function bootstrap() {
   CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, name TEXT NOT NULL, mobile TEXT, email TEXT, subject TEXT, message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'unread', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
   CREATE TABLE IF NOT EXISTS site_content (id SERIAL PRIMARY KEY, content_key TEXT UNIQUE NOT NULL, value_en TEXT NOT NULL DEFAULT '', value_ar TEXT NOT NULL DEFAULT '', updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
   CREATE TABLE IF NOT EXISTS site_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '', updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());`);
-  await query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'unpaid', ADD COLUMN IF NOT EXISTS invoice_id TEXT, ADD COLUMN IF NOT EXISTS invoice_url TEXT, ADD COLUMN IF NOT EXISTS payment_id TEXT, ADD COLUMN IF NOT EXISTS amount NUMERIC(10,2)`);
+  await query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'unpaid', ADD COLUMN IF NOT EXISTS invoice_id TEXT, ADD COLUMN IF NOT EXISTS invoice_url TEXT, ADD COLUMN IF NOT EXISTS payment_id TEXT, ADD COLUMN IF NOT EXISTS amount NUMERIC(10,2), ADD COLUMN IF NOT EXISTS service_price NUMERIC(10,2), ADD COLUMN IF NOT EXISTS invoice_amount NUMERIC(10,2), ADD COLUMN IF NOT EXISTS payment_method TEXT, ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ, ADD COLUMN IF NOT EXISTS transaction_date TEXT, ADD COLUMN IF NOT EXISTS verification_status TEXT NOT NULL DEFAULT 'unverified'`);
+  await query(`ALTER TABLE services ADD COLUMN IF NOT EXISTS price_updated_at TIMESTAMPTZ`);
   const admin = await query('SELECT id FROM admins LIMIT 1');
   if (!admin.rows.length && process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) { const hash=await bcrypt.hash(process.env.ADMIN_PASSWORD,12); await query('INSERT INTO admins(name,email,password_hash,role) VALUES($1,$2,$3,$4)',[process.env.ADMIN_NAME||'Admin',process.env.ADMIN_EMAIL.toLowerCase(),hash,'super_admin']); }
 }
@@ -38,12 +40,30 @@ app.get('/api/health',(_req,res)=>res.json({ok:true,database:!!pool}));
 app.get('/api/admin/me',auth,(req,res)=>res.json({user:req.user,permissions:ROLES[normalizeRole(req.user.role)]||[]}));
 app.get('/api/dashboard',...protect('dashboard:read'),async(_req,res)=>{try{const[t,p,c,m,recent]=await Promise.all([query('SELECT COUNT(*)::int AS n FROM bookings'),query("SELECT COUNT(*)::int AS n FROM bookings WHERE status IN ('new','pending')"),query("SELECT COUNT(*)::int AS n FROM bookings WHERE status='completed'"),query("SELECT COUNT(*)::int AS n FROM messages WHERE status='unread'"),query('SELECT b.*,s.name_en AS service_name FROM bookings b LEFT JOIN services s ON s.id=b.service_id ORDER BY b.created_at DESC LIMIT 8')]);res.json({stats:{total:t.rows[0].n,pending:p.rows[0].n,completed:c.rows[0].n,unreadMessages:m.rows[0].n},recent:recent.rows});}catch(e){res.status(500).json({error:e.message});}});
 app.get('/api/bookings',...protect('bookings:read'),async(req,res)=>{try{const q=String(req.query.search||'').trim(),status=String(req.query.status||'').trim(),p=[],w=[];if(q){p.push(`%${q}%`);w.push(`(b.customer_name ILIKE $${p.length} OR b.pet_name ILIKE $${p.length} OR b.booking_code ILIKE $${p.length})`);}if(status){p.push(status);w.push(`b.status=$${p.length}`);}const sql=`SELECT b.*,s.name_en AS service_name FROM bookings b LEFT JOIN services s ON s.id=b.service_id ${w.length?'WHERE '+w.join(' AND '):''} ORDER BY b.appointment_date DESC NULLS LAST,b.created_at DESC`;res.json((await query(sql,p)).rows);}catch(e){res.status(500).json({error:e.message});}});
-app.post('/api/bookings',async(req,res)=>{try{const b=req.body,code='VV-'+Date.now().toString().slice(-7);const r=await query(`INSERT INTO bookings(booking_code,customer_name,mobile,email,pet_type,pet_name,breed,age,gender,service_id,area,address,directions,appointment_date,appointment_time,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'new') RETURNING *`,[code,b.customer_name,b.mobile,b.email||null,b.pet_type||null,b.pet_name||null,b.breed||null,b.age||null,b.gender||null,b.service_id||null,b.area||null,b.address||null,b.directions||null,b.appointment_date||null,b.appointment_time||null]);res.status(201).json(r.rows[0]);}catch(e){res.status(500).json({error:e.message});}});
-app.patch('/api/bookings/:id',...protect('bookings:write'),async(req,res)=>{try{const{status,admin_notes}=req.body,r=await query('UPDATE bookings SET status=COALESCE($1,status),admin_notes=COALESCE($2,admin_notes),updated_at=NOW() WHERE id=$3 RETURNING *',[status,admin_notes,req.params.id]);await audit(req,'update','booking',{id:req.params.id,status});res.json(r.rows[0]);}catch(e){res.status(500).json({error:e.message});}});
+app.post('/api/bookings',async(req,res)=>{try{
+  const b=req.body, code='VV-'+Date.now().toString().slice(-7);
+  // Price resolved SERVER-SIDE from services table — frontend amount is never trusted.
+  let svc=null, price=null;
+  if(b.service_id){ const sr=await query('SELECT * FROM services WHERE id=$1 AND active=true',[b.service_id]); if(sr.rows.length){ svc=sr.rows[0]; price=svc.price!==null?Number(svc.price):null; } }
+  const needsPayment = price!==null && price>0 && paymentConfigured();
+  const status = needsPayment ? 'pending_payment' : 'new';
+  const r=await query(`INSERT INTO bookings(booking_code,customer_name,mobile,email,pet_type,pet_name,breed,age,gender,service_id,area,address,directions,appointment_date,appointment_time,status,service_price,payment_status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+    [code,b.customer_name,b.mobile,b.email||null,b.pet_type||null,b.pet_name||null,b.breed||null,b.age||null,b.gender||null,svc?svc.id:(b.service_id||null),b.area||null,b.address||null,b.directions||null,b.appointment_date||null,b.appointment_time||null,status,price,needsPayment?'pending':'unpaid']);
+  const booking=r.rows[0];
+  if(needsPayment){
+    try{
+      const inv=await createInvoice({bookingCode:code,customerName:b.customer_name,mobile:b.mobile,email:b.email,amount:price,serviceName:svc?svc.name_en:''});
+      await query('UPDATE bookings SET invoice_id=$1,invoice_url=$2,invoice_amount=$3 WHERE id=$4',[inv.invoiceId,inv.invoiceUrl,price,booking.id]);
+      return res.status(201).json({...booking,invoice_url:inv.invoiceUrl,invoice_amount:price,requires_payment:true});
+    }catch(e){ await query("UPDATE bookings SET status='new',payment_status='unpaid' WHERE id=$1",[booking.id]); return res.status(201).json({...booking,requires_payment:false,payment_error:String(e.message)}); }
+  }
+  res.status(201).json({...booking,requires_payment:false});
+}catch(e){res.status(500).json({error:e.message});}});
+pp.patch('/api/bookings/:id',...protect('bookings:write'),async(req,res)=>{try{const{status,admin_notes}=req.body,r=await query('UPDATE bookings SET status=COALESCE($1,status),admin_notes=COALESCE($2,admin_notes),updated_at=NOW() WHERE id=$3 RETURNING *',[status,admin_notes,req.params.id]);await audit(req,'update','booking',{id:req.params.id,status});res.json(r.rows[0]);}catch(e){res.status(500).json({error:e.message});}});
 app.get('/api/services',async(_req,res)=>{try{res.json((await query('SELECT * FROM services WHERE active=true ORDER BY sort_order,id')).rows);}catch(e){res.status(500).json({error:e.message});}});
 app.get('/api/admin/services',...protect('services:read'),async(_req,res)=>{try{res.json((await query('SELECT * FROM services ORDER BY sort_order,id')).rows);}catch(e){res.status(500).json({error:e.message});}});
-app.post('/api/admin/services',...protect('services:write'),async(req,res)=>{try{const x=req.body,r=await query('INSERT INTO services(name_en,name_ar,description_en,description_ar,price,image_url,active,sort_order) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',[x.name_en,x.name_ar||'',x.description_en||'',x.description_ar||'',x.price||null,x.image_url||null,x.active!==false,x.sort_order||0]);await audit(req,'create','service',{id:r.rows[0].id});res.status(201).json(r.rows[0]);}catch(e){res.status(500).json({error:e.message});}});
-app.patch('/api/admin/services/:id',...protect('services:write'),async(req,res)=>{try{const x=req.body,r=await query('UPDATE services SET name_en=COALESCE($1,name_en),name_ar=COALESCE($2,name_ar),description_en=COALESCE($3,description_en),description_ar=COALESCE($4,description_ar),price=COALESCE($5,price),image_url=COALESCE($6,image_url),active=COALESCE($7,active),sort_order=COALESCE($8,sort_order),updated_at=NOW() WHERE id=$9 RETURNING *',[x.name_en,x.name_ar,x.description_en,x.description_ar,x.price,x.image_url,x.active,x.sort_order,req.params.id]);await audit(req,'update','service',{id:req.params.id});res.json(r.rows[0]);}catch(e){res.status(500).json({error:e.message});}});
+app.post('/api/admin/services',...protect('services:write'),async(req,res)=>{try{const x=req.body,r=await query('INSERT INTO services(name_en,name_ar,description_en,description_ar,price,image_url,active,sort_order,price_updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,CASE WHEN $5 IS NOT NULL THEN NOW() ELSE NULL END) RETURNING *',[x.name_en,x.name_ar||'',x.description_en||'',x.description_ar||'',x.price||null,x.image_url||null,x.active!==false,x.sort_order||0]);await audit(req,'create','service',{id:r.rows[0].id});res.status(201).json(r.rows[0]);}catch(e){res.status(500).json({error:e.message});}});
+app.patch('/api/admin/services/:id',...protect('services:write'),async(req,res)=>{try{const x=req.body,r=await query('UPDATE services SET name_en=COALESCE($1,name_en),name_ar=COALESCE($2,name_ar),description_en=COALESCE($3,description_en),description_ar=COALESCE($4,description_ar),price=COALESCE($5,price),price_updated_at=CASE WHEN $5 IS NOT NULL AND $5 IS DISTINCT FROM price THEN NOW() ELSE price_updated_at END,image_url=COALESCE($6,image_url),active=COALESCE($7,active),sort_order=COALESCE($8,sort_order),updated_at=NOW() WHERE id=$9 RETURNING *',[x.name_en,x.name_ar,x.description_en,x.description_ar,x.price,x.image_url,x.active,x.sort_order,req.params.id]);await audit(req,'update','service',{id:req.params.id});res.json(r.rows[0]);}catch(e){res.status(500).json({error:e.message});}});
 app.delete('/api/admin/services/:id',...protect('services:write'),async(req,res)=>{try{await query('DELETE FROM services WHERE id=$1',[req.params.id]);await audit(req,'delete','service',{id:req.params.id});res.status(204).end();}catch(e){res.status(500).json({error:e.message});}});
 app.get('/api/content',async(_req,res)=>{try{const rows=(await query('SELECT content_key,value_en,value_ar FROM site_content')).rows;res.json(Object.fromEntries(rows.map(x=>[x.content_key,{en:x.value_en,ar:x.value_ar}])));}catch(e){res.status(500).json({error:e.message});}});
 app.put('/api/admin/content/:key',...protect('content:write'),async(req,res)=>{try{const{en='',ar=''}=req.body,r=await query('INSERT INTO site_content(content_key,value_en,value_ar) VALUES($1,$2,$3) ON CONFLICT(content_key) DO UPDATE SET value_en=$2,value_ar=$3,updated_at=NOW() RETURNING *',[req.params.key,en,ar]);await audit(req,'update','content',{key:req.params.key});res.json(r.rows[0]);}catch(e){res.status(500).json({error:e.message});}});
@@ -82,30 +102,71 @@ app.post('/api/payments/initiate', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 app.get('/api/payments/callback', async (req, res) => {
+  let ok = false;
   try {
     const pid = String(req.query.paymentId || '');
-    if (pid && process.env.MYFATOORAH_API_KEY && pool) {
-      const st = await mfCall('/v2/getPaymentStatus', { Key: pid, KeyType: 'PaymentId' });
-      if (st.IsSuccess && st.Data.CustomerReference) {
-        const ps = st.Data.InvoiceStatus === 'Paid' ? 'paid' : st.Data.InvoiceStatus === 'Failed' ? 'failed' : 'pending';
-        await query('UPDATE bookings SET payment_status=$1, payment_id=$2 WHERE booking_code=$3', [ps, pid, st.Data.CustomerReference]).catch(() => {});
+    if (pid && paymentConfigured() && pool) {
+      const v = await verifyPayment(pid);
+      if (v.bookingCode) {
+        // Amount integrity check: invoice value must match the snapshot price
+        const br = await query('SELECT invoice_amount FROM bookings WHERE booking_code=$1', [v.bookingCode]);
+        const expected = br.rows.length && br.rows[0].invoice_amount !== null ? Number(br.rows[0].invoice_amount) : null;
+        const amountOk = expected === null || Number(v.invoiceValue) === expected;
+        const finalStatus = v.verified && amountOk ? 'paid' : (v.status === 'paid' ? 'verification_required' : v.status);
+        ok = finalStatus === 'paid';
+        await query(`UPDATE bookings SET payment_status=$1, payment_id=$2, payment_method=$3, transaction_date=$4, verification_status=$5, paid_at=$6, status=CASE WHEN $1='paid' AND status='pending_payment' THEN 'confirmed' ELSE status END, updated_at=NOW() WHERE booking_code=$7`,
+          [finalStatus, pid, v.paymentMethod, v.transactionDate, v.verified && amountOk ? 'verified' : 'failed', v.verified && amountOk ? new Date().toISOString() : null, v.bookingCode]);
       }
     }
   } catch {}
-  res.redirect('/#payment-success');
+  res.redirect(ok ? '/#payment-success' : '/#payment-failed');
 });
 app.get('/api/payments/error', async (req, res) => {
   try {
     const pid = String(req.query.paymentId || '');
-    if (pid && process.env.MYFATOORAH_API_KEY && pool) {
-      const st = await mfCall('/v2/getPaymentStatus', { Key: pid, KeyType: 'PaymentId' });
-      if (st.IsSuccess && st.Data.CustomerReference) await query("UPDATE bookings SET payment_status='failed', payment_id=$1 WHERE booking_code=$2", [pid, st.Data.CustomerReference]).catch(() => {});
+    if (pid && paymentConfigured() && pool) {
+      const v = await verifyPayment(pid);
+      if (v.bookingCode) await query("UPDATE bookings SET payment_status=$1, payment_id=$2, verification_status='failed', updated_at=NOW() WHERE booking_code=$3", [v.status === 'paid' ? 'verification_required' : v.status, pid, v.bookingCode]);
     }
   } catch {}
   res.redirect('/#payment-failed');
 });
-app.get('/api/admin/payments', ...protect('bookings:read'), async (_req, res) => {
-  try { res.json((await query("SELECT booking_code, customer_name, mobile, amount, payment_status, invoice_url, created_at FROM bookings WHERE invoice_id IS NOT NULL ORDER BY created_at DESC")).rows); } catch (e) { res.status(500).json({ error: e.message }); }
+// Webhook: MyFatoorah notifies; we NEVER trust the payload — we re-verify server-side.
+app.post('/api/payments/webhook', async (req, res) => {
+  res.status(200).json({ received: true });
+  try {
+    if (!paymentConfigured() || !pool) return;
+    const d = req.body && req.body.Data ? req.body.Data : req.body || {};
+    const pid = d.PaymentId || (req.body && req.body.paymentId);
+    if (!pid) return;
+    const v = await verifyPayment(String(pid));
+    if (v.bookingCode) {
+      const finalStatus = v.verified ? 'paid' : v.status;
+      await query(`UPDATE bookings SET payment_status=$1, payment_id=$2, payment_method=$3, transaction_date=$4, verification_status=$5, paid_at=$6, status=CASE WHEN $1='paid' AND status='pending_payment' THEN 'confirmed' ELSE status END, updated_at=NOW() WHERE booking_code=$7`,
+        [finalStatus, String(pid), v.paymentMethod, v.transactionDate, v.verified ? 'verified' : 'failed', v.verified ? new Date().toISOString() : null, v.bookingCode]);
+    }
+  } catch {}
+});
+app.get('/api/admin/payments', ...protect('bookings:read'), async (req, res) => {
+  try {
+    const st = String(req.query.status || '').trim();
+    const p = [], w = [];
+    if (st) { p.push(st); w.push(`b.payment_status=$${p.length}`); }
+    const rows = (await query(`SELECT b.id, b.booking_code, b.customer_name, b.mobile, b.email, b.service_price, b.invoice_amount, b.invoice_id, b.payment_id, b.payment_method, b.payment_status, b.transaction_date, b.verification_status, b.paid_at, b.created_at, s.name_en AS service_name, s.name_ar AS service_name_ar FROM bookings b LEFT JOIN services s ON s.id=b.service_id ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY b.created_at DESC`, p)).rows;
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+// Manual re-verification from dashboard (button) — server-side check with MyFatoorah.
+app.post('/api/admin/payments/:bookingCode/verify', ...protect('bookings:write'), async (req, res) => {
+  try {
+    const br = await query('SELECT payment_id FROM bookings WHERE booking_code=$1', [req.params.bookingCode]);
+    if (!br.rows.length || !br.rows[0].payment_id) return res.status(404).json({ error: 'no payment to verify' });
+    const v = await verifyPayment(br.rows[0].payment_id);
+    const finalStatus = v.verified ? 'paid' : v.status;
+    await query(`UPDATE bookings SET payment_status=$1, payment_method=$2, transaction_date=$3, verification_status=$4, paid_at=$5, status=CASE WHEN $1='paid' AND status='pending_payment' THEN 'confirmed' ELSE status END, updated_at=NOW() WHERE booking_code=$6`,
+      [finalStatus, v.paymentMethod, v.transactionDate, v.verified ? 'verified' : 'failed', v.verified ? new Date().toISOString() : null, req.params.bookingCode]);
+    res.json({ ok: true, status: finalStatus, verification: v.verified ? 'verified' : 'failed' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 bootstrap().then(()=>app.listen(PORT,'0.0.0.0',()=>console.log(`VETS VAN server listening on ${PORT}`))).catch(e=>{console.error(e);process.exit(1);});

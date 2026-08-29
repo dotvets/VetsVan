@@ -1439,30 +1439,60 @@
             navTo('home');
         }
 
-        // تسجيل الحجز في قاعدة البيانات وإنشاء فاتورة MyFatoorah إن وُجد سعر للخدمة
-        async function recordBookingAndPay(d) {
+        // ===== Production payment flow: booking -> pending_payment -> MyFatoorah redirect =====
+        // Prices come from the server (services table). Cards are annotated on load.
+        let vvServices = [];
+        async function loadServicePrices() {
+            try {
+                vvServices = await fetch('/api/services').then(r => r.json());
+                document.querySelectorAll('#serviceCardsContainer .select-card').forEach(card => {
+                    const en = card.querySelector('.en-only')?.innerText.trim() || '';
+                    const ar = card.querySelector('.ar-only')?.innerText.trim() || '';
+                    const svc = vvServices.find(x => x.name_en === en || (x.name_ar && x.name_ar === ar));
+                    if (svc) {
+                        card.dataset.serviceId = svc.id;
+                        if (svc.price !== null && Number(svc.price) > 0) {
+                            const p = document.createElement('span');
+                            p.style.cssText = 'display:block;font-size:.85rem;font-weight:400;margin-top:6px;opacity:.85';
+                            p.textContent = svc.price + ' ريال';
+                            card.appendChild(p);
+                        }
+                    }
+                });
+            } catch {}
+        }
+        loadServicePrices();
+
+        async function createBookingAndRedirect(d) {
+            const card = document.querySelector('#step-2 .select-card.selected');
+            const serviceId = card && card.dataset.serviceId ? Number(card.dataset.serviceId) : null;
             try {
                 const bk = await fetch('/api/bookings', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ customer_name: d.ownerName, mobile: d.ownerPhone, email: d.ownerEmail, pet_type: d.petType, pet_name: d.petName, breed: d.petBreed, age: d.petAge, gender: d.petGender, area: d.area, address: d.address, directions: d.directions, appointment_date: d.date || null, appointment_time: d.time })
-                }).then(r => r.ok ? r.json() : null).catch(() => null);
-                let amount = 0;
-                try {
-                    const services = await fetch('/api/services').then(r => r.json());
-                    const svc = (services || []).find(x => (d.service || '').includes(x.name_en) || (x.name_ar && (d.service || '').includes(x.name_ar)));
-                    if (svc && Number(svc.price) > 0) amount = Number(svc.price);
-                } catch {}
-                if (!amount) return;
-                const pay = await fetch('/api/payments/initiate', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ customer_name: d.ownerName, mobile: d.ownerPhone, email: d.ownerEmail, amount, service: d.service, booking_code: bk ? bk.booking_code : '' })
-                }).then(r => r.json()).catch(() => null);
-                if (pay && pay.ok && pay.invoiceUrl) {
-                    const area = document.getElementById('payment-area');
-                    if (area) area.innerHTML = `<a href="${pay.invoiceUrl}" target="_blank" class="btn btn-primary" style="background:#28a745;"><span class="en-only">Pay Now ${amount} SAR (MyFatoorah)</span><span class="ar-only">ادفع الآن ${amount} ريال عبر ماي فاتورة</span></a>`;
+                    body: JSON.stringify({ customer_name: d.ownerName, mobile: d.ownerPhone, email: d.ownerEmail, pet_type: d.petType, pet_name: d.petName, breed: d.petBreed, age: d.petAge, gender: d.petGender, service_id: serviceId, area: d.area, address: d.address, directions: d.directions, appointment_date: d.date || null, appointment_time: d.time })
+                }).then(r => r.ok ? r.json() : null);
+                if (bk && bk.requires_payment && bk.invoice_url) {
+                    // Show final amount clearly, then redirect to MyFatoorah checkout
+                    const isAr = document.documentElement.lang === 'ar';
+                    document.body.insertAdjacentHTML('beforeend', `<div id="pay-redirect" style="position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:9999"><div style="background:#fff;border-radius:16px;padding:40px;text-align:center;max-width:400px"><h3 style="color:#a32890">${isAr ? 'تم إنشاء حجزك' : 'Booking Created'}</h3><p>${isAr ? 'المبلغ المطلوب:' : 'Amount due:'} <b style="font-size:1.4em">${bk.invoice_amount} ريال</b></p><p style="color:#888">${isAr ? 'جارٍ تحويلك إلى بوابة الدفع الآمنة…' : 'Redirecting you to the secure payment gateway…'}</p><a href="${bk.invoice_url}" style="color:#a32890">${isAr ? 'اضغط هنا إذا لم يتم التحويل' : 'Click here if not redirected'}</a></div></div>`);
+                    setTimeout(() => { window.location.href = bk.invoice_url; }, 2200);
+                    return true;
                 }
             } catch {}
+            return false;
         }
+
+        // Payment result pages (returned from MyFatoorah via server-verified callback)
+        (function handlePaymentReturn() {
+            const h = location.hash;
+            if (!h.startsWith('#payment-')) return;
+            const ok = h === '#payment-success';
+            const isAr = document.documentElement.lang === 'ar';
+            document.addEventListener('DOMContentLoaded', () => {
+                document.body.insertAdjacentHTML('beforeend', `<div style="position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:9999" onclick="this.remove()"><div style="background:#fff;border-radius:16px;padding:44px;text-align:center;max-width:420px"><div style="font-size:3rem">${ok ? '✅' : '❌'}</div><h2 style="color:${ok ? '#1a7f37' : '#c00'}">${ok ? (isAr ? 'تم الدفع بنجاح — حجزك مؤكد' : 'Payment Successful — Booking Confirmed') : (isAr ? 'لم يكتمل الدفع' : 'Payment Not Completed')}</h2><p style="color:#666">${ok ? (isAr ? 'تم التحقق من عملية الدفع لدى MyFatoorah وتأكيد حجزك.' : 'Your payment was verified with MyFatoorah and your booking is confirmed.') : (isAr ? 'فشلت العملية أو أُلغيت — حجزك مسجل ويمكنك الدفع لاحقاً أو التواصل معنا.' : 'The payment failed or was cancelled — your booking is recorded; you may pay later or contact us.')}</p><button onclick="this.closest('div').parentElement.remove()" style="background:#a32890;color:#fff;border:none;border-radius:10px;padding:12px 32px;font-size:16px;cursor:pointer">${isAr ? 'حسناً' : 'OK'}</button></div></div>`);
+            });
+            history.replaceState(null, '', location.pathname);
+        })();
 
         // إرسال بيانات الحجز إلى الإيميل مع رابط مباشر ومكتمل لموقع الخريطة
         function submitBookingForm() {
@@ -1534,8 +1564,7 @@
             .then(async (response) => {
                 let json = await response.json();
                 if (response.status == 200) {
-                    recordBookingAndPay({ ownerName, ownerPhone, ownerEmail, petType, petName, petBreed, petAge, petGender, service, area, address, directions, date, time });
-                    navTo('booking-success');
+                    createBookingAndRedirect({ ownerName, ownerPhone, ownerEmail, petType, petName, petBreed, petAge, petGender, service, area, address, directions, date, time }).then(redirected => { if (!redirected) navTo('booking-success'); });
                 } else {
                     alert(json.message);
                 }
