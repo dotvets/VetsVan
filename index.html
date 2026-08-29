@@ -858,6 +858,10 @@
                                 <span><span class="en-only">Service</span><span class="ar-only">الخدمة</span></span> 
                                 <span id="summaryService">Wellness Exam</span>
                             </div>
+                            <div class="summary-item" id="summaryPriceRow" style="display:none; font-weight:700;">
+                                <span><span class="en-only">Price</span><span class="ar-only">السعر</span></span> 
+                                <span id="summaryPrice" style="color:var(--purple);"></span>
+                            </div>
                             <div class="summary-item">
                                 <span><span class="en-only">Location</span><span class="ar-only">الموقع</span></span> 
                                 <span id="summaryLocation">Riyadh</span>
@@ -1395,6 +1399,11 @@
             if (serviceEl) {
                 const serviceText = serviceEl.innerText.trim();
                 document.getElementById('summaryService').innerText = serviceText;
+                const priceRow = document.getElementById('summaryPriceRow');
+                if (serviceEl.dataset.price && Number(serviceEl.dataset.price) > 0) {
+                    priceRow.style.display = '';
+                    document.getElementById('summaryPrice').innerText = serviceEl.dataset.price + ' ' + (isAr ? 'ريال' : 'SAR');
+                } else { priceRow.style.display = 'none'; }
             }
             if (areaEl) {
                 document.getElementById('summaryLocation').innerText = areaEl.value;
@@ -1442,23 +1451,23 @@
         // ===== Production payment flow: booking -> pending_payment -> MyFatoorah redirect =====
         // Prices come from the server (services table). Cards are annotated on load.
         let vvServices = [];
+        const VV_ICONS = ['fa-stethoscope','fa-syringe','fa-house-medical','fa-flask','fa-tooth','fa-microchip','fa-x-ray','fa-file-medical','fa-paw','fa-heart-pulse'];
         async function loadServicePrices() {
             try {
                 vvServices = await fetch('/api/services').then(r => r.json());
-                document.querySelectorAll('#serviceCardsContainer .select-card').forEach(card => {
-                    const en = card.querySelector('.en-only')?.innerText.trim() || '';
-                    const ar = card.querySelector('.ar-only')?.innerText.trim() || '';
-                    const svc = vvServices.find(x => x.name_en === en || (x.name_ar && x.name_ar === ar));
-                    if (svc) {
-                        card.dataset.serviceId = svc.id;
-                        if (svc.price !== null && Number(svc.price) > 0) {
-                            const p = document.createElement('span');
-                            p.style.cssText = 'display:block;font-size:.85rem;font-weight:400;margin-top:6px;opacity:.85';
-                            p.textContent = svc.price + ' ريال';
-                            card.appendChild(p);
-                        }
-                    }
-                });
+                if (!Array.isArray(vvServices) || !vvServices.length) return;
+                const container = document.getElementById('serviceCardsContainer');
+                if (!container) return;
+                // Render cards from the database — dashboard services & prices are the single source of truth
+                container.innerHTML = vvServices.map((svc, i) => {
+                    const icon = VV_ICONS[i % VV_ICONS.length];
+                    const hasPrice = svc.price !== null && Number(svc.price) > 0;
+                    const priceBadge = hasPrice ? `<span style="display:block;font-size:.85rem;font-weight:400;margin-top:6px;opacity:.9">${svc.price} ريال</span>` : '';
+                    return `<div class="select-card${i === 0 ? ' selected' : ''}" data-service-id="${svc.id}" data-price="${hasPrice ? svc.price : ''}" onclick="selectCard(this, 'service')">
+                        <i class="fa-solid ${icon}"></i>
+                        <span><span class="en-only">${svc.name_en}</span><span class="ar-only">${svc.name_ar || svc.name_en}</span>${priceBadge}</span>
+                    </div>`;
+                }).join('');
             } catch {}
         }
         loadServicePrices();
