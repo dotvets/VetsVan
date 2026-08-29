@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تسجيل الدخول — VETS VAN</title>
+<style>
+  body{font-family:sans-serif;background:#f7f3fa;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+  form{background:#fff;padding:40px;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.08);width:340px}
+  h1{color:#a32890;text-align:center;font-size:22px;margin-bottom:20px}
+  input{width:100%;padding:12px;margin-bottom:12px;border-radius:8px;border:1px solid #ddd;box-sizing:border-box;font-size:15px}
+  button{width:100%;padding:12px;background:#a32890;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer}
+  .err{color:#c00;font-size:13px;display:none;margin-bottom:10px}
+</style>
+</head>
+<body>
+<form id="f">
+  <h1>🚐 لوحة تحكم VETS VAN</h1>
+  <input id="email" type="email" placeholder="البريد الإلكتروني" required>
+  <input id="pass" type="password" placeholder="كلمة المرور" required>
+  <div class="err" id="err">بيانات الدخول غير صحيحة</div>
+  <button>دخول</button>
+</form>
+<script>
+document.getElementById('f').onsubmit = async (e) => {
+  e.preventDefault();
+  const r = await fetch('/api/auth/login', {method:'POST',headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({email: document.getElementById('email').value, password: document.getElementById('pass').value})});
+  if (r.ok) { const d = await r.json(); localStorage.setItem('vv_token', d.token); location.href = '/admin'; }
+  else document.getElementById('err').style.display = 'block';
+};
+</script>
+</body>
+</html>
