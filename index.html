@@ -903,6 +903,7 @@
                     <span class="en-only">Thank you for choosing VETS VAN. We have received your booking details. We will contact you shortly.</span>
                     <span class="ar-only">شكراً لاختيارك VETS VAN. لقد تلقينا تفاصيل حجزك ، وسنتواصل معك في أقرب وقت.</span>
                 </p>
+                <div id="payment-area" style="margin-bottom: 1.5rem;"></div>
                 <button class="btn btn-primary" onclick="resetBookingAndGoHome()">
                     <span class="en-only">Return to Home</span>
                     <span class="ar-only">العودة للصفحة الرئيسية</span>
@@ -1438,6 +1439,31 @@
             navTo('home');
         }
 
+        // تسجيل الحجز في قاعدة البيانات وإنشاء فاتورة MyFatoorah إن وُجد سعر للخدمة
+        async function recordBookingAndPay(d) {
+            try {
+                const bk = await fetch('/api/bookings', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ customer_name: d.ownerName, mobile: d.ownerPhone, email: d.ownerEmail, pet_type: d.petType, pet_name: d.petName, breed: d.petBreed, age: d.petAge, gender: d.petGender, area: d.area, address: d.address, directions: d.directions, appointment_date: d.date || null, appointment_time: d.time })
+                }).then(r => r.ok ? r.json() : null).catch(() => null);
+                let amount = 0;
+                try {
+                    const services = await fetch('/api/services').then(r => r.json());
+                    const svc = (services || []).find(x => (d.service || '').includes(x.name_en) || (x.name_ar && (d.service || '').includes(x.name_ar)));
+                    if (svc && Number(svc.price) > 0) amount = Number(svc.price);
+                } catch {}
+                if (!amount) return;
+                const pay = await fetch('/api/payments/initiate', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ customer_name: d.ownerName, mobile: d.ownerPhone, email: d.ownerEmail, amount, service: d.service, booking_code: bk ? bk.booking_code : '' })
+                }).then(r => r.json()).catch(() => null);
+                if (pay && pay.ok && pay.invoiceUrl) {
+                    const area = document.getElementById('payment-area');
+                    if (area) area.innerHTML = `<a href="${pay.invoiceUrl}" target="_blank" class="btn btn-primary" style="background:#28a745;"><span class="en-only">Pay Now ${amount} SAR (MyFatoorah)</span><span class="ar-only">ادفع الآن ${amount} ريال عبر ماي فاتورة</span></a>`;
+                }
+            } catch {}
+        }
+
         // إرسال بيانات الحجز إلى الإيميل مع رابط مباشر ومكتمل لموقع الخريطة
         function submitBookingForm() {
             if (!validateCurrentStep(5)) return;
@@ -1508,6 +1534,7 @@
             .then(async (response) => {
                 let json = await response.json();
                 if (response.status == 200) {
+                    recordBookingAndPay({ ownerName, ownerPhone, ownerEmail, petType, petName, petBreed, petAge, petGender, service, area, address, directions, date, time });
                     navTo('booking-success');
                 } else {
                     alert(json.message);

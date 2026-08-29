@@ -26,6 +26,7 @@ async function bootstrap() {
   CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, name TEXT NOT NULL, mobile TEXT, email TEXT, subject TEXT, message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'unread', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
   CREATE TABLE IF NOT EXISTS site_content (id SERIAL PRIMARY KEY, content_key TEXT UNIQUE NOT NULL, value_en TEXT NOT NULL DEFAULT '', value_ar TEXT NOT NULL DEFAULT '', updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
   CREATE TABLE IF NOT EXISTS site_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '', updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());`);
+  await query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'unpaid', ADD COLUMN IF NOT EXISTS invoice_id TEXT, ADD COLUMN IF NOT EXISTS invoice_url TEXT, ADD COLUMN IF NOT EXISTS payment_id TEXT, ADD COLUMN IF NOT EXISTS amount NUMERIC(10,2)`);
   const admin = await query('SELECT id FROM admins LIMIT 1');
   if (!admin.rows.length && process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) { const hash=await bcrypt.hash(process.env.ADMIN_PASSWORD,12); await query('INSERT INTO admins(name,email,password_hash,role) VALUES($1,$2,$3,$4)',[process.env.ADMIN_NAME||'Admin',process.env.ADMIN_EMAIL.toLowerCase(),hash,'super_admin']); }
 }
@@ -57,4 +58,54 @@ app.delete('/api/admin/users/:id',...protect('__super_admin__'),async(req,res)=>
 app.get('/api/admin/audit-logs',...protect('__super_admin__'),async(_req,res)=>{try{res.json((await query('SELECT l.*,a.name AS admin_name,a.email AS admin_email FROM audit_logs l LEFT JOIN admins a ON a.id=l.admin_id ORDER BY l.created_at DESC LIMIT 200')).rows);}catch(e){res.status(500).json({error:e.message});}});
 app.get('/admin/login',(_req,res)=>res.sendFile(path.join(__dirname,'..','admin','login.html')));
 app.get(['/admin','/admin/'],async(_req,res)=>{try{const file=await fs.readFile(path.join(__dirname,'..','admin','index.html'),'utf8');res.type('html').send(file.replace('</body>','<script src="/admin/rbac-client.js"></script></body>'));}catch(e){res.status(500).send('Admin dashboard unavailable');}});
+// ===== MyFatoorah payment integration (VetsVan live token, api-sa) =====
+const MF_BASE = process.env.MYFATOORAH_BASE_URL || 'https://api-sa.myfatoorah.com';
+async function mfCall(p, body) {
+  const r = await fetch(MF_BASE + p, { method: 'POST', headers: { Authorization: 'Bearer ' + process.env.MYFATOORAH_API_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  return r.json();
+}
+app.post('/api/payments/initiate', async (req, res) => {
+  try {
+    if (!process.env.MYFATOORAH_API_KEY) return res.status(503).json({ error: 'payment_not_configured' });
+    const { customer_name, mobile, email, amount, service, booking_code } = req.body || {};
+    if (!customer_name || !amount || Number(amount) <= 0) return res.status(400).json({ error: 'customer_name and positive amount required' });
+    const site = process.env.SITE_URL || 'https://vetsvan.onrender.com';
+    const r = await mfCall('/v2/SendPayment', {
+      CustomerName: customer_name, NotificationOption: 'LNK', InvoiceValue: Number(amount), DisplayCurrencyIso: 'SAR',
+      CustomerEmail: email || undefined, CustomerMobile: mobile || undefined,
+      CallBackUrl: site + '/api/payments/callback', ErrorUrl: site + '/api/payments/error',
+      Language: 'ar', CustomerReference: booking_code || '', UserDefinedField: service || 'VetsVan Service'
+    });
+    if (!r.IsSuccess) return res.status(502).json({ error: r.Message || 'myfatoorah_error' });
+    if (booking_code && pool) await query("UPDATE bookings SET invoice_id=$1, invoice_url=$2, payment_status='pending', amount=$3 WHERE booking_code=$4", [String(r.Data.InvoiceId), r.Data.InvoiceURL, Number(amount), booking_code]).catch(() => {});
+    res.json({ ok: true, invoiceUrl: r.Data.InvoiceURL, invoiceId: r.Data.InvoiceId });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.get('/api/payments/callback', async (req, res) => {
+  try {
+    const pid = String(req.query.paymentId || '');
+    if (pid && process.env.MYFATOORAH_API_KEY && pool) {
+      const st = await mfCall('/v2/getPaymentStatus', { Key: pid, KeyType: 'PaymentId' });
+      if (st.IsSuccess && st.Data.CustomerReference) {
+        const ps = st.Data.InvoiceStatus === 'Paid' ? 'paid' : st.Data.InvoiceStatus === 'Failed' ? 'failed' : 'pending';
+        await query('UPDATE bookings SET payment_status=$1, payment_id=$2 WHERE booking_code=$3', [ps, pid, st.Data.CustomerReference]).catch(() => {});
+      }
+    }
+  } catch {}
+  res.redirect('/#payment-success');
+});
+app.get('/api/payments/error', async (req, res) => {
+  try {
+    const pid = String(req.query.paymentId || '');
+    if (pid && process.env.MYFATOORAH_API_KEY && pool) {
+      const st = await mfCall('/v2/getPaymentStatus', { Key: pid, KeyType: 'PaymentId' });
+      if (st.IsSuccess && st.Data.CustomerReference) await query("UPDATE bookings SET payment_status='failed', payment_id=$1 WHERE booking_code=$2", [pid, st.Data.CustomerReference]).catch(() => {});
+    }
+  } catch {}
+  res.redirect('/#payment-failed');
+});
+app.get('/api/admin/payments', ...protect('bookings:read'), async (_req, res) => {
+  try { res.json((await query("SELECT booking_code, customer_name, mobile, amount, payment_status, invoice_url, created_at FROM bookings WHERE invoice_id IS NOT NULL ORDER BY created_at DESC")).rows); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 bootstrap().then(()=>app.listen(PORT,'0.0.0.0',()=>console.log(`VETS VAN server listening on ${PORT}`))).catch(e=>{console.error(e);process.exit(1);});
