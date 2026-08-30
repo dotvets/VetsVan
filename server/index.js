@@ -9,6 +9,7 @@ import { requirePermission, ROLES, normalizeRole } from './rbac.js';
 import { paymentConfigured, createInvoice, verifyPayment } from './payments.js';
 import { sendPaymentConfirmationEmail, sendBookingNotificationEmail } from './email.js';
 import { sendWhatsAppBookingNotification, sendWhatsAppTest, getWaConfig, bookingDetailsText, WA_SENDER_DISPLAY } from './whatsapp.js';
+import { notifyWhatsApp, retryWhatsApp, getBevatelSettings, bevatelConfigured, bookingVars, renderTemplate, DEFAULT_TEMPLATE } from './bevatel.js';
 
 const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -33,6 +34,7 @@ async function bootstrap() {
   await query(`ALTER TABLE services ADD COLUMN IF NOT EXISTS price_updated_at TIMESTAMPTZ`);
   await query(`CREATE TABLE IF NOT EXISTS reviews (id SERIAL PRIMARY KEY, booking_code TEXT UNIQUE NOT NULL REFERENCES bookings(booking_code) ON DELETE CASCADE, rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5), comment TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
   await query(`CREATE TABLE IF NOT EXISTS whatsapp_queue (id SERIAL PRIMARY KEY, booking_code TEXT NOT NULL REFERENCES bookings(booking_code) ON DELETE CASCADE, target_number TEXT NOT NULL, message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), sent_at TIMESTAMPTZ)`);
+  await query(`CREATE TABLE IF NOT EXISTS whatsapp_logs (id SERIAL PRIMARY KEY, booking_code TEXT NOT NULL, recipient TEXT NOT NULL, message_type TEXT NOT NULL, message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', error TEXT, attempts INT NOT NULL DEFAULT 0, dedupe_key TEXT UNIQUE NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), sent_at TIMESTAMPTZ)`);
   const admin = await query('SELECT id FROM admins LIMIT 1');
   if (!admin.rows.length && process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) { const hash=await bcrypt.hash(process.env.ADMIN_PASSWORD,12); await query('INSERT INTO admins(name,email,password_hash,role) VALUES($1,$2,$3,$4)',[process.env.ADMIN_NAME||'Admin',process.env.ADMIN_EMAIL.toLowerCase(),hash,'super_admin']); }
 }
@@ -68,6 +70,7 @@ async function notifyIfNewlyPaid(bookingCode){
     if(!r.rows.length)return;
     const sent=await sendPaymentConfirmationEmail(r.rows[0]);
     if(sent)await query('UPDATE bookings SET confirmation_email_sent=true WHERE booking_code=$1',[bookingCode]);
+    notifyWhatsApp(query, r.rows[0], 'payment').catch(()=>{});
   }catch(e){console.error('notifyIfNewlyPaid:',e.message);}
 }
 app.get('/api/admin/me',auth,(req,res)=>res.json({user:req.user,permissions:ROLES[normalizeRole(req.user.role)]||[]}));
@@ -93,6 +96,8 @@ app.post('/api/bookings',async(req,res)=>{try{
   const emailSent=await sendBookingNotificationEmail(full);
   // WhatsApp automation pipeline (auto/manual/off — controlled from dashboard settings)
   handleWhatsAppAutomation(full).catch(()=>{});
+  // Bevatel: new-booking notification (auto-retry x3, dedupe, never fails the booking)
+  notifyWhatsApp(query, full, 'new').catch(()=>{});
   if(needsPayment){
     try{
       const inv=await createInvoice({bookingCode:code,customerName:b.customer_name,mobile:b.mobile,email:b.email,amount:price,serviceName:svc?svc.name_en:''});
@@ -102,7 +107,23 @@ app.post('/api/bookings',async(req,res)=>{try{
   }
   res.status(201).json({...booking,requires_payment:false,email_sent:emailSent});
 }catch(e){res.status(500).json({error:e.message});}});
-app.patch('/api/bookings/:id',...protect('bookings:write'),async(req,res)=>{try{const{status,admin_notes}=req.body,r=await query('UPDATE bookings SET status=COALESCE($1,status),admin_notes=COALESCE($2,admin_notes),updated_at=NOW() WHERE id=$3 RETURNING *',[status,admin_notes,req.params.id]);await audit(req,'update','booking',{id:req.params.id,status});res.json(r.rows[0]);}catch(e){res.status(500).json({error:e.message});}});
+app.patch('/api/bookings/:id',...protect('bookings:write'),async(req,res)=>{try{
+  const{status,admin_notes,appointment_date,appointment_time}=req.body;
+  const before=(await query('SELECT * FROM bookings WHERE id=$1',[req.params.id])).rows[0];
+  const r=await query('UPDATE bookings SET status=COALESCE($1,status),admin_notes=COALESCE($2,admin_notes),appointment_date=COALESCE($3,appointment_date),appointment_time=COALESCE($4,appointment_time),updated_at=NOW() WHERE id=$5 RETURNING *',[status,admin_notes,appointment_date||null,appointment_time||null,req.params.id]);
+  await audit(req,'update','booking',{id:req.params.id,status});
+  const b=r.rows[0];
+  // Bevatel event notifications (dedupe per booking+type, never block the update)
+  const svc=b.service_id?(await query('SELECT name_en,name_ar FROM services WHERE id=$1',[b.service_id])).rows[0]:null;
+  const full={...b,service_name:svc?.name_en,service_name_ar:svc?.name_ar};
+  if(before){
+    const resched=(appointment_date&&String(appointment_date).slice(0,10)!==String(before.appointment_date||'').slice(0,10))||(appointment_time&&appointment_time!==before.appointment_time);
+    if(resched)notifyWhatsApp(query,full,'rescheduled').catch(()=>{});
+    if(status==='confirmed'&&before.status!=='confirmed')notifyWhatsApp(query,full,'confirmed').catch(()=>{});
+    if(status==='cancelled'&&before.status!=='cancelled')notifyWhatsApp(query,full,'cancelled').catch(()=>{});
+  }
+  res.json(b);
+}catch(e){res.status(500).json({error:e.message});}});
 app.get('/api/services',async(_req,res)=>{try{res.json((await query('SELECT * FROM services WHERE active=true ORDER BY sort_order,id')).rows);}catch(e){res.status(500).json({error:e.message});}});
 app.get('/api/admin/services',...protect('services:read'),async(_req,res)=>{try{res.json((await query('SELECT * FROM services ORDER BY sort_order,id')).rows);}catch(e){res.status(500).json({error:e.message});}});
 app.post('/api/admin/services',...protect('services:write'),async(req,res)=>{try{const x=req.body,r=await query('INSERT INTO services(name_en,name_ar,description_en,description_ar,price,image_url,active,sort_order,price_updated_at) VALUES($1,$2,$3,$4,$5::numeric,$6,$7,$8,CASE WHEN $5 IS NOT NULL THEN NOW() ELSE NULL END) RETURNING *',[x.name_en,x.name_ar||'',x.description_en||'',x.description_ar||'',x.price||null,x.image_url||null,x.active!==false,x.sort_order||0]);await audit(req,'create','service',{id:r.rows[0].id});res.status(201).json(r.rows[0]);}catch(e){res.status(500).json({error:e.message});}});
@@ -270,6 +291,44 @@ app.get('/api/admin/whatsapp-check', ...protect('__super_admin__'), async (_req,
     }
     res.json(out);
   } catch (e) { res.status(502).json({ ...out, error: e.message }); }
+});
+// ===== Bevatel booking notifications: settings, template, logs, retry =====
+app.get('/api/admin/bevatel-settings', ...protect('settings:read'), async (_req, res) => {
+  try {
+    const cfg = await getBevatelSettings(query);
+    res.json({
+      enabled: cfg.enabled, provider: 'Bevatel',
+      account_id: process.env.BEVATEL_ACCOUNT_ID || '', inbox_id: process.env.BEVATEL_INBOX_ID || '',
+      sender: process.env.BEVATEL_SENDER_NUMBER || '920011626',
+      recipient: cfg.recipient, template: cfg.template, default_template: DEFAULT_TEMPLATE,
+      toggles: cfg.toggles, configured: bevatelConfigured(), token_present: !!process.env.BEVATEL_API_TOKEN,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.put('/api/admin/bevatel-settings', ...protect('settings:write'), async (req, res) => {
+  try {
+    const { enabled, recipient, template, toggles } = req.body || {};
+    const ups = async (k, v) => query('INSERT INTO site_settings(key,value) VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=$2,updated_at=NOW()', [k, String(v)]);
+    if (enabled !== undefined) await ups('bevatel_enabled', enabled ? 'on' : 'off');
+    if (recipient !== undefined) await ups('bevatel_recipient', String(recipient).trim());
+    if (template !== undefined) await ups('bevatel_template', String(template));
+    if (toggles) for (const k of ['new', 'confirmed', 'cancelled', 'rescheduled', 'payment'])
+      if (toggles[k] !== undefined) await ups('wa_notify_' + k, toggles[k] ? '1' : '0');
+    await audit(req, 'update', 'bevatel_settings', { enabled, recipient });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/admin/bevatel-preview', ...protect('settings:read'), async (req, res) => {
+  const sample = { booking_code: 'VV-1234567', customer_name: 'أحمد محمد', mobile: '0501234567', email: 'ahmad@example.com', service_name_ar: 'فحوصات العافية', area: 'جدة', appointment_date: '2026-09-01', appointment_time: '10:00 AM', pet_name: 'مشمش', pet_type: 'قطة', service_price: 575, payment_status: 'paid', directions: 'حي الروضة' };
+  res.json({ preview: renderTemplate(req.body?.template || DEFAULT_TEMPLATE, bookingVars(sample)) });
+});
+app.get('/api/admin/whatsapp-logs', ...protect('bookings:read'), async (req, res) => {
+  try { res.json((await query('SELECT id,booking_code,recipient,message_type,message,status,error,attempts,created_at,sent_at FROM whatsapp_logs ORDER BY created_at DESC LIMIT 200')).rows); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/admin/whatsapp-logs/:id/retry', ...protect('bookings:write'), async (req, res) => {
+  try { const r = await retryWhatsApp(query, req.params.id); res.status(r.ok ? 200 : 502).json(r); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 // ===== WhatsApp queue (dashboard: pending messages, one-click send, mark sent/skip) =====
 app.get('/api/admin/whatsapp-queue', ...protect('bookings:read'), async (req, res) => {

@@ -145,10 +145,38 @@ async function show(t) {
     const settings = await api('/api/admin/settings');
     const mode = settings.whatsapp_auto || 'manual';
     const wcfg = await api('/api/admin/whatsapp-settings');
+    const bcfg = await api('/api/admin/bevatel-settings');
+    const waLogs = await api('/api/admin/whatsapp-logs');
     const queue = await api('/api/admin/whatsapp-queue?status=pending');
     const history = await api('/api/admin/whatsapp-queue');
     const modeLbl = { auto: '🤖 تلقائي (API)', manual: '👆 يدوي — طابور جاهز', off: '⛔ إيقاف' };
-    main.innerHTML = `<div class="card"><h3>⚙️ إعدادات WhatsApp Cloud API</h3>
+    const typeLbl = { new: 'حجز جديد', confirmed: 'تأكيد حجز', cancelled: 'إلغاء حجز', rescheduled: 'إعادة جدولة', payment: 'اكتمال دفع' };
+    const stLbl = { pending: '🟡 Pending', sent: '🟢 Sent', failed: '🔴 Failed' };
+    main.innerHTML = `<div class="card"><h3>📢 WhatsApp Booking Notifications <small style="color:#888;font-weight:400">(Provider: Bevatel)</small></h3>
+      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <b>WhatsApp Integration:</b>
+        <button class="btn" id="bev_toggle" style="${bcfg.enabled ? '' : 'background:#ddd;color:#333'}">${bcfg.enabled ? 'ON ✅' : 'OFF ⛔'}</button>
+        <span style="color:#888">Account ID: <b>${esc(bcfg.account_id)}</b> | Inbox ID: <b>${esc(bcfg.inbox_id)}</b> | Sender: <b>${esc(bcfg.sender)}</b> ${bcfg.configured ? '<span style="color:#27ae60">● متصل</span>' : '<span style="color:#c0392b">● إعدادات ناقصة</span>'}</span>
+      </div>
+      <label style="display:block;max-width:300px">Booking Notification Recipient:
+        <input id="bev_recipient" value="${esc(bcfg.recipient)}" dir="ltr"></label>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin:12px 0">
+        ${['new','confirmed','cancelled','rescheduled','payment'].map(k => `<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" class="bev_cb" data-k="${k}" ${bcfg.toggles[k] ? 'checked' : ''}> ${typeLbl[k]}</label>`).join('')}
+      </div>
+      <label style="display:block"><b>قالب الرسالة</b> — المتغيرات: <code style="font-size:11px">{{customerName}} {{customerPhone}} {{customerEmail}} {{bookingId}} {{service}} {{branch}} {{date}} {{time}} {{petName}} {{petType}} {{amount}} {{paymentStatus}} {{notes}} {{bookingUrl}}</code>
+        <textarea id="bev_template" rows="14" style="width:100%;font-family:inherit;font-size:13px">${esc(bcfg.template)}</textarea></label>
+      <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
+        <button class="btn" id="bev_save">💾 حفظ الإعدادات والقالب</button>
+        <button class="btn" id="bev_default" style="background:#ddd;color:#333">استعادة القالب الافتراضي</button>
+        <button class="btn" id="bev_preview" style="background:#5b3fa8">👁️ معاينة حية</button>
+      </div>
+      <pre id="bev_preview_box" style="display:none;white-space:pre-wrap;font-family:inherit;font-size:13px;background:#f7f5fb;padding:12px;border-radius:8px;margin-top:10px"></pre>
+    </div>
+    <div class="card"><h3>📜 WhatsApp Notification Logs</h3>
+      <table><tr><th>Date</th><th>Booking ID</th><th>Recipient</th><th>Type</th><th>Status</th><th>Sent At</th><th>Error</th><th></th></tr>
+      ${waLogs.map(l => `<tr><td>${esc((l.created_at||'').slice(0,16).replace('T',' '))}</td><td>${esc(l.booking_code)}</td><td dir="ltr">${esc(l.recipient)}</td><td>${typeLbl[l.message_type]||esc(l.message_type)}</td><td>${stLbl[l.status]||l.status}${l.attempts>1?` (${l.attempts})`:''}</td><td>${esc((l.sent_at||'').slice(0,16).replace('T',' ')||'—')}</td><td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;color:#c0392b;font-size:12px">${esc(l.error||'')}</td>
+        <td>${l.status==='failed'?`<button class="btn" data-retry="${l.id}">🔄 Retry</button>`:''}</td></tr>`).join('') || '<tr><td colspan="8">لا سجلات بعد.</td></tr>'}</table></div>
+    <div class="card"><h3>⚙️ إعدادات WhatsApp Cloud API (Meta — مباشر)</h3>
       <div style="display:grid;gap:10px;max-width:520px">
         <label>رقم المرسل (WhatsApp Business)<input value="${esc(wcfg.sender)}" disabled style="background:#f0f0f5"></label>
         <label>Access Token<input id="wa_token" type="password" value="${esc(wcfg.token_masked)}" placeholder="${wcfg.has_token ? '••••••••••••••••' : 'أدخل التوكن هنا'}" autocomplete="off"></label>
@@ -177,6 +205,36 @@ async function show(t) {
       <h4 style="margin-top:20px">السجل</h4>
       <table><tr><th>الحجز</th><th>الرقم</th><th>الحالة</th><th>التاريخ</th></tr>
       ${history.slice(0,30).map(q => `<tr><td>${esc(q.booking_code)}</td><td>${esc(q.target_number)}</td><td>${q.status==='sent'?'✅ أُرسلت':q.status==='pending'?'🟡 معلقة':'⏭️ تخطي'}</td><td>${esc((q.sent_at||q.created_at||'').slice(0,16))}</td></tr>`).join('') || '<tr><td colspan="4">—</td></tr>'}</table></div>`;
+    const collectBev = () => ({
+      enabled: document.getElementById('bev_toggle').textContent.includes('ON'),
+      recipient: document.getElementById('bev_recipient').value,
+      template: document.getElementById('bev_template').value,
+      toggles: Object.fromEntries([...main.querySelectorAll('.bev_cb')].map(c => [c.dataset.k, c.checked])),
+    });
+    document.getElementById('bev_toggle').onclick = async () => {
+      const nowOn = !document.getElementById('bev_toggle').textContent.includes('ON');
+      await api('/api/admin/bevatel-settings', { method: 'PUT', body: JSON.stringify({ enabled: nowOn }) });
+      show('whatsapp');
+    };
+    document.getElementById('bev_save').onclick = async () => {
+      await api('/api/admin/bevatel-settings', { method: 'PUT', body: JSON.stringify(collectBev()) });
+      show('whatsapp');
+    };
+    document.getElementById('bev_default').onclick = async () => {
+      document.getElementById('bev_template').value = bcfg.default_template;
+    };
+    document.getElementById('bev_preview').onclick = async () => {
+      const box = document.getElementById('bev_preview_box');
+      const d = await api('/api/admin/bevatel-preview', { method: 'POST', body: JSON.stringify({ template: document.getElementById('bev_template').value }) });
+      box.style.display = 'block'; box.textContent = d.preview;
+    };
+    main.querySelectorAll('button[data-retry]').forEach(b => b.onclick = async () => {
+      b.disabled = true; b.textContent = '…';
+      const r = await fetch('/api/admin/whatsapp-logs/' + b.dataset.retry + '/retry', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token } });
+      const d = await r.json();
+      if (!d.ok) alert('فشل الإرسال: ' + (d.error || ''));
+      show('whatsapp');
+    });
     document.getElementById('wa_save').onclick = async () => {
       await api('/api/admin/whatsapp-settings', { method: 'PUT', body: JSON.stringify({
         token: document.getElementById('wa_token').value,
