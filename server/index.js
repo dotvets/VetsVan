@@ -201,6 +201,40 @@ app.get('/api/admin/payments', ...protect('bookings:read'), async (req, res) => 
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+// ===== WhatsApp diagnostic (read-only): verifies WHATSAPP_TOKEN with Meta and lists WABA phone numbers =====
+app.get('/api/admin/whatsapp-check', ...protect('__super_admin__'), async (_req, res) => {
+  const out = { configured: whatsappConfigured(), hasToken: !!process.env.WHATSAPP_TOKEN, hasPhoneId: !!process.env.WHATSAPP_PHONE_ID };
+  if (!process.env.WHATSAPP_TOKEN) return res.json({ ...out, error: 'WHATSAPP_TOKEN not set' });
+  const T = process.env.WHATSAPP_TOKEN, G = 'https://graph.facebook.com/v20.0';
+  try {
+    const dbg = await (await fetch(`${G}/debug_token?input_token=${T}&access_token=${T}`)).json();
+    const d = dbg.data || {};
+    out.token = { valid: !!d.is_valid, app_id: d.app_id, application: d.application, type: d.type, expires_at: d.expires_at ? new Date(d.expires_at * 1000).toISOString() : 'never', scopes: d.granular_scopes ? d.granular_scopes.map(s => s.scope) : (d.scopes || []) };
+    if (!d.is_valid) return res.json(out);
+    // enumerate WhatsApp Business Accounts accessible to this token
+    const wabas = [];
+    try {
+      const biz = await (await fetch(`${G}/me/businesses?access_token=${T}`)).json();
+      for (const b of (biz.data || [])) {
+        const w = await (await fetch(`${G}/${b.id}/owned_whatsapp_business_accounts?access_token=${T}`)).json();
+        wabas.push(...(w.data || []));
+      }
+    } catch {}
+    if (!wabas.length && d.granular_scopes) {
+      for (const s of d.granular_scopes) {
+        if (s.scope === 'whatsapp_business_messaging' && s.target_ids) wabas.push(...s.target_ids.map(id => ({ id })));
+      }
+    }
+    out.wabas = [];
+    for (const w of wabas) {
+      try {
+        const nums = await (await fetch(`${G}/${w.id}/phone_numbers?access_token=${T}`)).json();
+        out.wabas.push({ waba_id: w.id, name: w.name || null, phone_numbers: (nums.data || []).map(n => ({ id: n.id, display_phone_number: n.display_phone_number, verified_name: n.verified_name, quality_rating: n.quality_rating })) });
+      } catch (e) { out.wabas.push({ waba_id: w.id, error: e.message }); }
+    }
+    res.json(out);
+  } catch (e) { res.status(502).json({ ...out, error: e.message }); }
+});
 // ===== WhatsApp queue (dashboard: pending messages, one-click send, mark sent/skip) =====
 app.get('/api/admin/whatsapp-queue', ...protect('bookings:read'), async (req, res) => {
   try {
