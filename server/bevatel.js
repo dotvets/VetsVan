@@ -81,19 +81,45 @@ export async function getBevatelSettings(query) {
   };
 }
 
-async function bevatelSend(recipient, content) {
-  const r = await fetch(process.env.BEVATEL_API_URL || 'https://chat.bevatel.com/webhooks/api_channel', {
-    method: 'POST',
-    headers: {
-      'api_access_token': process.env.BEVATEL_API_TOKEN,
-      'api_account_id': process.env.BEVATEL_ACCOUNT_ID,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ inbox_id: Number(process.env.BEVATEL_INBOX_ID), contact: { phone_number: recipient }, message: { content } }),
-  });
+const BEV_BASE = () => `https://chat.bevatel.com/api/v1/accounts/${process.env.BEVATEL_ACCOUNT_ID}`;
+const BEV_HEADERS = () => ({ 'api_access_token': process.env.BEVATEL_API_TOKEN, 'Content-Type': 'application/json' });
+const INBOX = () => Number(process.env.BEVATEL_INBOX_ID);
+
+async function bevFetch(path, body) {
+  const r = await fetch(BEV_BASE() + path, { method: body ? 'POST' : 'GET', headers: BEV_HEADERS(), body: body ? JSON.stringify(body) : undefined });
   const text = await r.text();
   if (!r.ok) throw new Error('Bevatel HTTP ' + r.status + ': ' + text.slice(0, 200));
   return text;
+}
+
+// Chatwoot-style flow: contact → contact_inbox (source_id) → conversation → outgoing message.
+async function bevatelSend(recipient, content) {
+  const phone = recipient.startsWith('+') ? recipient : '+' + recipient;
+  // 1) contact
+  let contactId = null;
+  try {
+    const c = JSON.parse(await bevFetch('/contacts', { phone_number: phone, name: 'VetsVan Notifications' }));
+    contactId = c?.payload?.contact?.id || c?.id;
+  } catch (e) {
+    if (!/already been taken/.test(e.message)) throw e;
+  }
+  if (!contactId) {
+    const s = JSON.parse(await bevFetch('/contacts/search?q=' + encodeURIComponent(phone)));
+    contactId = s?.payload?.[0]?.id;
+  }
+  if (!contactId) throw new Error('Bevatel: contact not found/created');
+  // 2) contact_inbox → source_id
+  const ci = JSON.parse(await bevFetch(`/contacts/${contactId}/contact_inboxes`, { inbox_id: INBOX() }));
+  const sourceId = ci?.source_id || ci?.payload?.source_id;
+  if (!sourceId) throw new Error('Bevatel: no source_id for inbox ' + INBOX());
+  // 3) conversation
+  const conv = JSON.parse(await bevFetch('/conversations', { inbox_id: INBOX(), source_id: sourceId }));
+  const convId = conv?.id;
+  if (!convId) throw new Error('Bevatel: conversation not created');
+  // 4) outgoing message (sent FROM the inbox's WhatsApp number)
+  const m = JSON.parse(await bevFetch(`/conversations/${convId}/messages`, { content, message_type: 'outgoing' }));
+  if (m?.error) throw new Error('Bevatel: ' + m.error);
+  return m;
 }
 
 // Core pipeline: dedupe (bookingId + type) → render → send with up to 3 attempts → log.
