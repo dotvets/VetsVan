@@ -33,6 +33,7 @@
   <div data-t="services">الخدمات والأسعار</div>
   <div data-t="messages">الرسائل</div>
   <div data-t="reviews">التقييمات</div>
+  <div data-t="whatsapp">واتساب 🤖</div>
   <div data-t="content">محتوى الموقع</div>
   <div data-t="settings">الإعدادات</div>
   <div id="logout" style="margin-top:40px">تسجيل خروج</div>
@@ -140,6 +141,40 @@ async function show(t) {
       ${rows.map(r => `<tr><td>${esc(r.booking_code)}</td><td>${esc(r.customer_name||'—')}</td><td>${esc(r.service_name_ar||r.service_name||'—')}</td>
         <td style="color:#f5b301;font-size:18px">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</td><td>${esc(r.comment||'—')}</td><td>${esc((r.created_at||'').slice(0,10))}</td></tr>`).join('') || '<tr><td colspan="6">لا تقييمات بعد.</td></tr>'}</table></div>`;
   }
+  if (t === 'whatsapp') {
+    const settings = await api('/api/admin/settings');
+    const mode = settings.whatsapp_auto || 'manual';
+    const queue = await api('/api/admin/whatsapp-queue?status=pending');
+    const history = await api('/api/admin/whatsapp-queue');
+    const modeLbl = { auto: '🤖 تلقائي (API)', manual: '👆 يدوي — طابور جاهز', off: '⛔ إيقاف' };
+    main.innerHTML = `<div class="card"><h3>أتمتة واتساب — الإرسال إلى 966539760530</h3>
+      <div style="display:flex;gap:10px;margin-bottom:6px;flex-wrap:wrap">
+        ${['auto','manual','off'].map(m => `<button class="btn" style="${mode===m?'':'background:#ddd;color:#333'}" data-mode="${m}">${modeLbl[m]}</button>`).join('')}
+      </div>
+      <small style="color:#888;display:block;margin-bottom:16px">الوضع الحالي: <b>${modeLbl[mode]}</b> — "تلقائي" يتطلب بيانات Meta API؛ بدونها تتحول الرسائل تلقائيًا للطابور اليدوي. الرقم 966920011626 يبقى يدويًا من صفحة الحجوزات.</small>
+      <h4>📬 الطابور — رسائل بانتظار الإرسال (${queue.length})</h4>
+      ${queue.map(q => `<div class="card" style="background:#f4fdf7;border:1px solid #bfe8cc">
+        <b>${esc(q.booking_code)}</b> → ${esc(q.target_number)} <small style="color:#999">${esc((q.created_at||'').slice(0,16))}</small>
+        <pre style="white-space:pre-wrap;font-family:inherit;font-size:13px;background:#fff;padding:10px;border-radius:8px;margin:8px 0">${esc(q.message)}</pre>
+        <a class="btn" style="background:#25d366;text-decoration:none" target="_blank" href="https://wa.me/${esc(q.target_number)}?text=${encodeURIComponent(q.message)}" data-sent="${q.id}">إرسال الآن 💬</a>
+        <button class="btn" style="background:#ddd;color:#333" data-skip="${q.id}">تخطي</button>
+      </div>`).join('') || '<p>لا رسائل معلقة 🎉</p>'}
+      <h4 style="margin-top:20px">السجل</h4>
+      <table><tr><th>الحجز</th><th>الرقم</th><th>الحالة</th><th>التاريخ</th></tr>
+      ${history.slice(0,30).map(q => `<tr><td>${esc(q.booking_code)}</td><td>${esc(q.target_number)}</td><td>${q.status==='sent'?'✅ أُرسلت':q.status==='pending'?'🟡 معلقة':'⏭️ تخطي'}</td><td>${esc((q.sent_at||q.created_at||'').slice(0,16))}</td></tr>`).join('') || '<tr><td colspan="4">—</td></tr>'}</table></div>`;
+    main.querySelectorAll('button[data-mode]').forEach(b => b.onclick = async () => {
+      await api('/api/admin/settings/whatsapp_auto', { method: 'PUT', body: JSON.stringify({ value: b.dataset.mode }) });
+      show('whatsapp');
+    });
+    main.querySelectorAll('a[data-sent]').forEach(a => a.onclick = async () => {
+      await api('/api/admin/whatsapp-queue/' + a.dataset.sent + '/sent', { method: 'POST' });
+      setTimeout(() => show('whatsapp'), 800);
+    });
+    main.querySelectorAll('button[data-skip]').forEach(b => b.onclick = async () => {
+      await api('/api/admin/whatsapp-queue/' + b.dataset.skip + '/skip', { method: 'POST' });
+      show('whatsapp');
+    });
+  }
   if (t === 'content') {
     const rows = await api('/api/content');
     main.innerHTML = `<div class="card"><h3>محتوى الموقع</h3>
@@ -199,8 +234,7 @@ function bookingTable(rows, editable) {
     <td><span class="badge ${b.payment_status||'unpaid'}">${b.payment_status||'unpaid'}</span></td>
     <td>${editable ? `<select data-bid="${b.id}">${['new','pending','confirmed','completed','cancelled'].map(s => `<option ${s===b.status?'selected':''}>${s}</option>`).join('')}</select>` : esc(b.status)}</td>
     <td>${b.status==='completed' ? `<a class="btn" style="background:#25d366;text-decoration:none" target="_blank" href="${waReviewLink(b)}">إرسال طلب تقييم 💬</a>` : ''}
-      <a class="btn" style="background:#25d366;text-decoration:none;margin-top:4px" target="_blank" href="${waAdminLink(b,'966920011626')}">واتساب 920011626 💬</a>
-      <a class="btn" style="background:#1faa53;text-decoration:none;margin-top:4px" target="_blank" href="${waAdminLink(b,'966539760530')}">واتساب 0539760530 💬</a></td></tr>`).join('')}</table>`;
+      <a class="btn" style="background:#25d366;text-decoration:none;margin-top:4px" target="_blank" href="${waAdminLink(b,'966920011626')}">واتساب 920011626 💬</a></td></tr>`).join('')}</table>`;
 }
 document.querySelectorAll('.side div[data-t]').forEach(d => d.onclick = () => show(d.dataset.t));
 document.getElementById('logout').onclick = () => { localStorage.removeItem('vv_token'); location.href = '/admin/login'; };

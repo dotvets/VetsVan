@@ -45,9 +45,9 @@ async function sendTo(number, payload) {
   return d;
 }
 
-export async function sendWhatsAppBookingNotification(b) {
+export async function sendWhatsAppBookingNotification(b, onlyNumber) {
   if (!whatsappConfigured()) { console.log('WhatsApp not configured — skipping notification for', b.booking_code); return false; }
-  const numbers = process.env.WHATSAPP_ADMIN_NUMBERS.split(',').map(s => s.trim()).filter(Boolean);
+  const numbers = onlyNumber ? [onlyNumber] : process.env.WHATSAPP_ADMIN_NUMBERS.split(',').map(s => s.trim()).filter(Boolean);
   const text = bookingDetailsText(b);
   const tpl = process.env.WHATSAPP_TEMPLATE;
   let allOk = true;

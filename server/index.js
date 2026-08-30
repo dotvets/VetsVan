@@ -8,7 +8,7 @@ import pg from 'pg';
 import { requirePermission, ROLES, normalizeRole } from './rbac.js';
 import { paymentConfigured, createInvoice, verifyPayment } from './payments.js';
 import { sendPaymentConfirmationEmail, sendBookingNotificationEmail } from './email.js';
-import { sendWhatsAppBookingNotification } from './whatsapp.js';
+import { sendWhatsAppBookingNotification, whatsappConfigured, bookingDetailsText } from './whatsapp.js';
 
 const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -32,6 +32,7 @@ async function bootstrap() {
   await query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'unpaid', ADD COLUMN IF NOT EXISTS invoice_id TEXT, ADD COLUMN IF NOT EXISTS invoice_url TEXT, ADD COLUMN IF NOT EXISTS payment_id TEXT, ADD COLUMN IF NOT EXISTS amount NUMERIC(10,2), ADD COLUMN IF NOT EXISTS service_price NUMERIC(10,2), ADD COLUMN IF NOT EXISTS invoice_amount NUMERIC(10,2), ADD COLUMN IF NOT EXISTS payment_method TEXT, ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ, ADD COLUMN IF NOT EXISTS transaction_date TEXT, ADD COLUMN IF NOT EXISTS verification_status TEXT NOT NULL DEFAULT 'unverified', ADD COLUMN IF NOT EXISTS confirmation_email_sent BOOLEAN NOT NULL DEFAULT FALSE`);
   await query(`ALTER TABLE services ADD COLUMN IF NOT EXISTS price_updated_at TIMESTAMPTZ`);
   await query(`CREATE TABLE IF NOT EXISTS reviews (id SERIAL PRIMARY KEY, booking_code TEXT UNIQUE NOT NULL REFERENCES bookings(booking_code) ON DELETE CASCADE, rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5), comment TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+  await query(`CREATE TABLE IF NOT EXISTS whatsapp_queue (id SERIAL PRIMARY KEY, booking_code TEXT NOT NULL REFERENCES bookings(booking_code) ON DELETE CASCADE, target_number TEXT NOT NULL, message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), sent_at TIMESTAMPTZ)`);
   const admin = await query('SELECT id FROM admins LIMIT 1');
   if (!admin.rows.length && process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) { const hash=await bcrypt.hash(process.env.ADMIN_PASSWORD,12); await query('INSERT INTO admins(name,email,password_hash,role) VALUES($1,$2,$3,$4)',[process.env.ADMIN_NAME||'Admin',process.env.ADMIN_EMAIL.toLowerCase(),hash,'super_admin']); }
 }
@@ -44,6 +45,22 @@ app.get('/api/health',(_req,res)=>res.json({ok:true,database:!!pool}));
 app.get('/api/reviews/check',async(req,res)=>{try{const code=String(req.query.code||'');if(!code)return res.status(400).json({error:'code required'});const b=await query('SELECT booking_code,customer_name,service_id FROM bookings WHERE booking_code=$1',[code]);if(!b.rows.length)return res.status(404).json({error:'booking not found'});const r=await query('SELECT id FROM reviews WHERE booking_code=$1',[code]);res.json({ok:true,already_reviewed:r.rows.length>0});}catch(e){res.status(500).json({error:e.message});}});
 app.post('/api/reviews',async(req,res)=>{try{const{booking_code,rating,comment=''}=req.body||{};const rt=Number(rating);if(!booking_code||!(rt>=1&&rt<=5))return res.status(400).json({error:'booking_code and rating (1-5) required'});const b=await query('SELECT booking_code FROM bookings WHERE booking_code=$1',[booking_code]);if(!b.rows.length)return res.status(404).json({error:'booking not found'});await query('INSERT INTO reviews(booking_code,rating,comment) VALUES($1,$2,$3)',[booking_code,rt,String(comment).slice(0,1000)]);res.status(201).json({ok:true});}catch(e){res.status(e.code==='23505'?409:500).json({error:e.code==='23505'?'already reviewed':e.message});}});
 app.get('/api/admin/reviews',...protect('bookings:read'),async(_req,res)=>{try{res.json((await query('SELECT r.*,b.customer_name,s.name_ar AS service_name_ar,s.name_en AS service_name FROM reviews r LEFT JOIN bookings b ON b.booking_code=r.booking_code LEFT JOIN services s ON s.id=b.service_id ORDER BY r.created_at DESC')).rows);}catch(e){res.status(500).json({error:e.message});}});
+// ===== WhatsApp automation (auto | manual | off — setting: whatsapp_auto) =====
+const WA_AUTO_NUMBER='966539760530'; // automation target — 966920011626 stays manual in dashboard
+async function handleWhatsAppAutomation(b){
+  try{
+    const sr=await query("SELECT value FROM site_settings WHERE key='whatsapp_auto'");
+    const mode=sr.rows.length?sr.rows[0].value:'manual';
+    if(mode==='off')return;
+    const text=bookingDetailsText(b);
+    if(mode==='auto'&&whatsappConfigured()){
+      const ok=await sendWhatsAppBookingNotification(b,WA_AUTO_NUMBER);
+      if(ok){await query("INSERT INTO whatsapp_queue(booking_code,target_number,message,status,sent_at) VALUES($1,$2,$3,'sent',NOW())",[b.booking_code,WA_AUTO_NUMBER,text]);return;}
+    }
+    // manual mode (or auto without API credentials): queue for one-click send from dashboard
+    await query('INSERT INTO whatsapp_queue(booking_code,target_number,message) VALUES($1,$2,$3)',[b.booking_code,WA_AUTO_NUMBER,text]);
+  }catch(e){console.error('WhatsApp automation:',e.message);}
+}
 // Send payment confirmation email exactly once, when a booking transitions to paid.
 async function notifyIfNewlyPaid(bookingCode){
   try{
@@ -74,8 +91,8 @@ app.post('/api/bookings',async(req,res)=>{try{
   // and never fails the booking or exposes SMTP details to the client.
   const full={...booking,service_name:svc?svc.name_en:null,service_name_ar:svc?svc.name_ar:null};
   const emailSent=await sendBookingNotificationEmail(full);
-  // WhatsApp auto-notification to clinic numbers (active only when Meta API env vars are set)
-  sendWhatsAppBookingNotification(full).catch(()=>{});
+  // WhatsApp automation pipeline (auto/manual/off — controlled from dashboard settings)
+  handleWhatsAppAutomation(full).catch(()=>{});
   if(needsPayment){
     try{
       const inv=await createInvoice({bookingCode:code,customerName:b.customer_name,mobile:b.mobile,email:b.email,amount:price,serviceName:svc?svc.name_en:''});
@@ -183,6 +200,22 @@ app.get('/api/admin/payments', ...protect('bookings:read'), async (req, res) => 
     const rows = (await query(`SELECT b.id, b.booking_code, b.customer_name, b.mobile, b.email, b.service_price, b.invoice_amount, b.invoice_id, b.payment_id, b.payment_method, b.payment_status, b.transaction_date, b.verification_status, b.paid_at, b.created_at, s.name_en AS service_name, s.name_ar AS service_name_ar FROM bookings b LEFT JOIN services s ON s.id=b.service_id ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY b.created_at DESC`, p)).rows;
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+// ===== WhatsApp queue (dashboard: pending messages, one-click send, mark sent/skip) =====
+app.get('/api/admin/whatsapp-queue', ...protect('bookings:read'), async (req, res) => {
+  try {
+    const st = String(req.query.status || '').trim();
+    const rows = st
+      ? (await query('SELECT * FROM whatsapp_queue WHERE status=$1 ORDER BY created_at DESC LIMIT 200', [st])).rows
+      : (await query('SELECT * FROM whatsapp_queue ORDER BY created_at DESC LIMIT 200')).rows;
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/admin/whatsapp-queue/:id/sent', ...protect('bookings:write'), async (req, res) => {
+  try { await query("UPDATE whatsapp_queue SET status='sent', sent_at=NOW() WHERE id=$1", [req.params.id]); res.json({ ok: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/admin/whatsapp-queue/:id/skip', ...protect('bookings:write'), async (req, res) => {
+  try { await query("UPDATE whatsapp_queue SET status='skipped' WHERE id=$1", [req.params.id]); res.json({ ok: true }); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 // Manual re-verification from dashboard (button) — server-side check with MyFatoorah.
 app.post('/api/admin/payments/:bookingCode/verify', ...protect('bookings:write'), async (req, res) => {
