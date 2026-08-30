@@ -171,6 +171,20 @@ async function show(t) {
     };
   }
 }
+function waAdminLink(b, num) {
+  const L = ['🔔 حجز — VetsVan', '------------------------------',
+    'رقم الحجز: ' + b.booking_code, 'صاحب الحجز: ' + (b.customer_name||''), 'الجوال: ' + (b.mobile||'')];
+  if (b.email) L.push('البريد: ' + b.email);
+  if (b.pet_type) L.push('نوع الحيوان: ' + b.pet_type);
+  if (b.pet_name) L.push('اسم الحيوان: ' + b.pet_name);
+  if (b.service_name) L.push('الخدمة: ' + b.service_name + (b.service_price != null ? ' — ' + b.service_price + ' ريال' : ''));
+  if (b.area) L.push('الحي/المنطقة: ' + b.area);
+  if (b.address) L.push('العنوان: ' + b.address);
+  if (b.appointment_date) L.push('تاريخ الحجز: ' + String(b.appointment_date).slice(0,10));
+  if (b.appointment_time) L.push('الوقت: ' + b.appointment_time);
+  L.push('حالة الدفع: ' + (b.payment_status || 'unpaid'));
+  return 'https://wa.me/' + num + '?text=' + encodeURIComponent(L.join('\n'));
+}
 function waReviewLink(b) {
   let m = String(b.mobile||'').replace(/\D/g,'').replace(/^0/,'966');
   if (!m.startsWith('966')) m = '966' + m;
@@ -184,7 +198,9 @@ function bookingTable(rows, editable) {
     <td>${esc(b.appointment_date ? String(b.appointment_date).slice(0,10) : '—')}</td>
     <td><span class="badge ${b.payment_status||'unpaid'}">${b.payment_status||'unpaid'}</span></td>
     <td>${editable ? `<select data-bid="${b.id}">${['new','pending','confirmed','completed','cancelled'].map(s => `<option ${s===b.status?'selected':''}>${s}</option>`).join('')}</select>` : esc(b.status)}</td>
-    <td>${b.status==='completed' ? `<a class="btn" style="background:#25d366;text-decoration:none" target="_blank" href="${waReviewLink(b)}">إرسال طلب تقييم 💬</a>` : ''}</td></tr>`).join('')}</table>`;
+    <td>${b.status==='completed' ? `<a class="btn" style="background:#25d366;text-decoration:none" target="_blank" href="${waReviewLink(b)}">إرسال طلب تقييم 💬</a>` : ''}
+      <a class="btn" style="background:#25d366;text-decoration:none;margin-top:4px" target="_blank" href="${waAdminLink(b,'966920011626')}">واتساب 920011626 💬</a>
+      <a class="btn" style="background:#1faa53;text-decoration:none;margin-top:4px" target="_blank" href="${waAdminLink(b,'966539760530')}">واتساب 0539760530 💬</a></td></tr>`).join('')}</table>`;
 }
 document.querySelectorAll('.side div[data-t]').forEach(d => d.onclick = () => show(d.dataset.t));
 document.getElementById('logout').onclick = () => { localStorage.removeItem('vv_token'); location.href = '/admin/login'; };

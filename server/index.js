@@ -8,6 +8,7 @@ import pg from 'pg';
 import { requirePermission, ROLES, normalizeRole } from './rbac.js';
 import { paymentConfigured, createInvoice, verifyPayment } from './payments.js';
 import { sendPaymentConfirmationEmail, sendBookingNotificationEmail } from './email.js';
+import { sendWhatsAppBookingNotification } from './whatsapp.js';
 
 const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -71,7 +72,10 @@ app.post('/api/bookings',async(req,res)=>{try{
   const booking=r.rows[0];
   // Notify clinic/admin by email (Reply-To = customer). Failure is logged server-side
   // and never fails the booking or exposes SMTP details to the client.
-  const emailSent=await sendBookingNotificationEmail({...booking,service_name:svc?svc.name_en:null,service_name_ar:svc?svc.name_ar:null});
+  const full={...booking,service_name:svc?svc.name_en:null,service_name_ar:svc?svc.name_ar:null};
+  const emailSent=await sendBookingNotificationEmail(full);
+  // WhatsApp auto-notification to clinic numbers (active only when Meta API env vars are set)
+  sendWhatsAppBookingNotification(full).catch(()=>{});
   if(needsPayment){
     try{
       const inv=await createInvoice({bookingCode:code,customerName:b.customer_name,mobile:b.mobile,email:b.email,amount:price,serviceName:svc?svc.name_en:''});
