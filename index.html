@@ -862,6 +862,10 @@
                                 <span><span class="en-only">Price</span><span class="ar-only">السعر</span></span> 
                                 <span id="summaryPrice" style="color:var(--purple);"></span>
                             </div>
+                            <div id="summaryPriceNote" style="display:none; font-size:.8rem; color:#8a8a9a; line-height:1.7; padding:4px 0 8px; border-bottom:1px solid #eee;">
+                                <span class="ar-only">يرجى العلم بأن المبلغ المذكور لا يشمل أي خدمات إضافية، ويتم احتسابها بشكل منفصل وفقًا للخدمات المطلوبة.</span>
+                                <span class="en-only">Please note that the stated amount does not include any additional services; these are charged separately according to the services requested.</span>
+                            </div>
                             <div class="summary-item">
                                 <span><span class="en-only">Location</span><span class="ar-only">الموقع</span></span> 
                                 <span id="summaryLocation">Riyadh</span>
@@ -1400,10 +1404,12 @@
                 const serviceText = serviceEl.innerText.trim();
                 document.getElementById('summaryService').innerText = serviceText;
                 const priceRow = document.getElementById('summaryPriceRow');
+                const priceNote = document.getElementById('summaryPriceNote');
                 if (serviceEl.dataset.price && Number(serviceEl.dataset.price) > 0) {
                     priceRow.style.display = '';
+                    priceNote.style.display = '';
                     document.getElementById('summaryPrice').innerText = serviceEl.dataset.price + ' ' + (isAr ? 'ريال' : 'SAR');
-                } else { priceRow.style.display = 'none'; }
+                } else { priceRow.style.display = 'none'; priceNote.style.display = 'none'; }
             }
             if (areaEl) {
                 document.getElementById('summaryLocation').innerText = areaEl.value;
@@ -1462,7 +1468,7 @@
                 container.innerHTML = vvServices.map((svc, i) => {
                     const icon = VV_ICONS[i % VV_ICONS.length];
                     const hasPrice = svc.price !== null && Number(svc.price) > 0;
-                    const priceBadge = hasPrice ? `<span style="display:block;font-size:.85rem;font-weight:400;margin-top:6px;opacity:.9">${svc.price} ريال</span>` : '';
+                    const priceBadge = '';
                     return `<div class="select-card${i === 0 ? ' selected' : ''}" data-service-id="${svc.id}" data-price="${hasPrice ? svc.price : ''}" onclick="selectCard(this, 'service')">
                         <i class="fa-solid ${icon}"></i>
                         <span><span class="en-only">${svc.name_en}</span><span class="ar-only">${svc.name_ar || svc.name_en}</span>${priceBadge}</span>
