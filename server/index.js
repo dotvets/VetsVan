@@ -8,7 +8,7 @@ import pg from 'pg';
 import { requirePermission, ROLES, normalizeRole } from './rbac.js';
 import { paymentConfigured, createInvoice, verifyPayment } from './payments.js';
 import { sendPaymentConfirmationEmail, sendBookingNotificationEmail } from './email.js';
-import { sendWhatsAppBookingNotification, whatsappConfigured, bookingDetailsText } from './whatsapp.js';
+import { sendWhatsAppBookingNotification, sendWhatsAppTest, getWaConfig, bookingDetailsText, WA_SENDER_DISPLAY } from './whatsapp.js';
 
 const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -53,8 +53,8 @@ async function handleWhatsAppAutomation(b){
     const mode=sr.rows.length?sr.rows[0].value:'manual';
     if(mode==='off')return;
     const text=bookingDetailsText(b);
-    if(mode==='auto'&&whatsappConfigured()){
-      const ok=await sendWhatsAppBookingNotification(b,WA_AUTO_NUMBER);
+    if(mode==='auto'){
+      const ok=await sendWhatsAppBookingNotification(b,query,WA_AUTO_NUMBER);
       if(ok){await query("INSERT INTO whatsapp_queue(booking_code,target_number,message,status,sent_at) VALUES($1,$2,$3,'sent',NOW())",[b.booking_code,WA_AUTO_NUMBER,text]);return;}
     }
     // manual mode (or auto without API credentials): queue for one-click send from dashboard
@@ -201,11 +201,47 @@ app.get('/api/admin/payments', ...protect('bookings:read'), async (req, res) => 
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
-// ===== WhatsApp diagnostic (read-only): verifies WHATSAPP_TOKEN with Meta and lists WABA phone numbers =====
+// ===== WhatsApp settings (dashboard-managed; token stored server-side only, never returned) =====
+app.get('/api/admin/whatsapp-settings', ...protect('settings:read'), async (_req, res) => {
+  try {
+    const cfg = await getWaConfig(query);
+    const custom = (await query("SELECT key,value FROM site_settings WHERE key IN ('whatsapp_token','whatsapp_phone_id','whatsapp_recipient')")).rows;
+    const s = Object.fromEntries(custom.map(r => [r.key, r.value]));
+    res.json({
+      has_token: !!cfg.token,
+      token_masked: cfg.token ? '••••••••••••••••' : '',
+      phone_id: cfg.phoneId,
+      sender: WA_SENDER_DISPLAY,
+      recipient: s.whatsapp_recipient || cfg.recipient,
+      configured: cfg.configured,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.put('/api/admin/whatsapp-settings', ...protect('settings:write'), async (req, res) => {
+  try {
+    const { token, phone_id, recipient } = req.body || {};
+    const ups = async (k, v) => query('INSERT INTO site_settings(key,value) VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=$2,updated_at=NOW()', [k, String(v)]);
+    // Token is updated ONLY when a real new value is provided — never the mask placeholder
+    if (token && token !== '••••••••••••••••') await ups('whatsapp_token', token.trim());
+    if (phone_id !== undefined) await ups('whatsapp_phone_id', String(phone_id).trim());
+    if (recipient !== undefined) await ups('whatsapp_recipient', String(recipient).replace(/\D/g, ''));
+    await audit(req, 'update', 'whatsapp_settings', { phone_id, recipient });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+// Send Test Message button — real send from +966920011626 to the test recipient.
+app.post('/api/admin/whatsapp-test', ...protect('settings:write'), async (req, res) => {
+  try {
+    const r = await sendWhatsAppTest(query);
+    res.status(r.ok ? 200 : 502).json(r);
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+// ===== WhatsApp diagnostic (read-only): verifies the configured token with Meta and lists WABA phone numbers =====
 app.get('/api/admin/whatsapp-check', ...protect('__super_admin__'), async (_req, res) => {
-  const out = { configured: whatsappConfigured(), hasToken: !!process.env.WHATSAPP_TOKEN, hasPhoneId: !!process.env.WHATSAPP_PHONE_ID };
-  if (!process.env.WHATSAPP_TOKEN) return res.json({ ...out, error: 'WHATSAPP_TOKEN not set' });
-  const T = process.env.WHATSAPP_TOKEN, G = 'https://graph.facebook.com/v20.0';
+  const cfg = await getWaConfig(query);
+  const out = { configured: cfg.configured, hasToken: !!cfg.token, phone_id: cfg.phoneId };
+  if (!cfg.token) return res.json({ ...out, error: 'WhatsApp token not set (dashboard settings or env)' });
+  const T = cfg.token, G = 'https://graph.facebook.com/v20.0';
   try {
     const dbg = await (await fetch(`${G}/debug_token?input_token=${T}&access_token=${T}`)).json();
     const d = dbg.data || {};

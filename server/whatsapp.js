@@ -1,13 +1,21 @@
-// ===== WhatsApp booking notifications (VetsVan) =====
-// Meta WhatsApp Cloud API — activates only when env vars are present:
-//   WHATSAPP_TOKEN       (Meta System User access token)
-//   WHATSAPP_PHONE_ID    (Phone number ID from Meta)
-//   WHATSAPP_ADMIN_NUMBERS (comma-separated, e.g. 966539760530,966920011626)
-// Optional: WHATSAPP_TEMPLATE (approved template name for business-initiated msgs)
-// If not configured: skipped silently (logged). Never fails a booking.
+// ===== WhatsApp integration (VetsVan) — Meta Cloud API =====
+// Configuration comes from DASHBOARD settings stored in the DB (site_settings):
+//   whatsapp_token (secret — never returned to the frontend), whatsapp_phone_id,
+//   whatsapp_sender, whatsapp_recipient
+// Fallback: env vars WHATSAPP_TOKEN / WHATSAPP_PHONE_ID / WHATSAPP_ADMIN_NUMBERS
+// The token is ONLY used server-side. Never logged, never sent to clients.
 
-export function whatsappConfigured() {
-  return !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID && process.env.WHATSAPP_ADMIN_NUMBERS);
+export const WA_SENDER_DISPLAY = '+966920011626';
+export const WA_DEFAULT_RECIPIENT = '966539760530';
+export const WA_DEFAULT_PHONE_ID = '107736745614392'; // phone_number_id of +966920011626 (discovered via Graph API)
+
+export async function getWaConfig(query) {
+  const rows = (await query("SELECT key,value FROM site_settings WHERE key IN ('whatsapp_token','whatsapp_phone_id','whatsapp_recipient')")).rows;
+  const s = Object.fromEntries(rows.map(r => [r.key, r.value]));
+  const token = s.whatsapp_token || process.env.WHATSAPP_TOKEN || '';
+  const phoneId = s.whatsapp_phone_id || process.env.WHATSAPP_PHONE_ID || WA_DEFAULT_PHONE_ID;
+  const recipient = s.whatsapp_recipient || (process.env.WHATSAPP_ADMIN_NUMBERS || '').split(',')[0] || WA_DEFAULT_RECIPIENT;
+  return { token, phoneId, recipient, configured: !!(token && phoneId) };
 }
 
 export function bookingDetailsText(b) {
@@ -34,37 +42,43 @@ export function bookingDetailsText(b) {
   return L.join('\n');
 }
 
-async function sendTo(number, payload) {
-  const r = await fetch(`https://graph.facebook.com/v20.0/${process.env.WHATSAPP_PHONE_ID}/messages`, {
+async function sendTo(cfg, number, text) {
+  const r = await fetch(`https://graph.facebook.com/v20.0/${cfg.phoneId}/messages`, {
     method: 'POST',
-    headers: { Authorization: 'Bearer ' + process.env.WHATSAPP_TOKEN, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messaging_product: 'whatsapp', to: number, ...payload }),
+    headers: { Authorization: 'Bearer ' + cfg.token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messaging_product: 'whatsapp', to: number, type: 'text', text: { body: text } }),
   });
-  const d = await r.json();
-  if (!r.ok) throw new Error(d?.error?.message || 'whatsapp_api_error');
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const err = d?.error || {};
+    const msg = [err.message, err.error_user_msg].filter(Boolean).join(' — ') || ('HTTP ' + r.status);
+    throw Object.assign(new Error(msg), { code: err.code, subcode: err.error_subcode });
+  }
   return d;
 }
 
-export async function sendWhatsAppBookingNotification(b, onlyNumber) {
-  if (!whatsappConfigured()) { console.log('WhatsApp not configured — skipping notification for', b.booking_code); return false; }
-  const numbers = onlyNumber ? [onlyNumber] : process.env.WHATSAPP_ADMIN_NUMBERS.split(',').map(s => s.trim()).filter(Boolean);
-  const text = bookingDetailsText(b);
-  const tpl = process.env.WHATSAPP_TEMPLATE;
-  let allOk = true;
-  for (const num of numbers) {
-    try {
-      // Business-initiated messages require an approved template; freeform text
-      // only works inside an open 24h customer service window.
-      if (tpl) {
-        await sendTo(num, { type: 'template', template: { name: tpl, language: { code: 'ar' }, components: [{ type: 'body', parameters: [{ type: 'text', text }] }] } });
-      } else {
-        await sendTo(num, { type: 'text', text: { body: text } });
-      }
-      console.log('WhatsApp sent to', num, 'for', b.booking_code);
-    } catch (e) {
-      console.error('WhatsApp failed to', num, ':', e.message);
-      allOk = false;
-    }
+export async function sendWhatsAppBookingNotification(b, query, onlyNumber) {
+  const cfg = await getWaConfig(query);
+  if (!cfg.configured) { console.log('WhatsApp not configured — skipping notification for', b.booking_code); return false; }
+  const number = onlyNumber || cfg.recipient;
+  try {
+    await sendTo(cfg, number, bookingDetailsText(b));
+    console.log('WhatsApp sent to', number, 'for', b.booking_code);
+    return true;
+  } catch (e) {
+    console.error('WhatsApp failed to', number, ':', e.message);
+    return false;
   }
-  return allOk;
+}
+
+// Test message used by the dashboard "Send Test Message" button.
+export async function sendWhatsAppTest(query) {
+  const cfg = await getWaConfig(query);
+  if (!cfg.configured) return { ok: false, error: 'Access Token أو Phone Number ID غير مكتملين في الإعدادات' };
+  try {
+    const d = await sendTo(cfg, cfg.recipient, 'VETS VAN WhatsApp API test message. The WhatsApp integration is working correctly.');
+    return { ok: true, message_id: d?.messages?.[0]?.id || null, to: cfg.recipient };
+  } catch (e) {
+    return { ok: false, error: e.message, code: e.code || null };
+  }
 }

@@ -144,10 +144,25 @@ async function show(t) {
   if (t === 'whatsapp') {
     const settings = await api('/api/admin/settings');
     const mode = settings.whatsapp_auto || 'manual';
+    const wcfg = await api('/api/admin/whatsapp-settings');
     const queue = await api('/api/admin/whatsapp-queue?status=pending');
     const history = await api('/api/admin/whatsapp-queue');
     const modeLbl = { auto: '🤖 تلقائي (API)', manual: '👆 يدوي — طابور جاهز', off: '⛔ إيقاف' };
-    main.innerHTML = `<div class="card"><h3>أتمتة واتساب — الإرسال إلى 966539760530</h3>
+    main.innerHTML = `<div class="card"><h3>⚙️ إعدادات WhatsApp Cloud API</h3>
+      <div style="display:grid;gap:10px;max-width:520px">
+        <label>رقم المرسل (WhatsApp Business)<input value="${esc(wcfg.sender)}" disabled style="background:#f0f0f5"></label>
+        <label>Access Token<input id="wa_token" type="password" value="${esc(wcfg.token_masked)}" placeholder="${wcfg.has_token ? '••••••••••••••••' : 'أدخل التوكن هنا'}" autocomplete="off"></label>
+        <label>WhatsApp Phone Number ID<input id="wa_phone_id" value="${esc(wcfg.phone_id)}"></label>
+        <label>رقم المستقبل للاختبار<input id="wa_recipient" value="${esc(wcfg.recipient)}"></label>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap">
+        <button class="btn" id="wa_save">💾 حفظ الإعدادات</button>
+        <button class="btn" id="wa_test" style="background:#25d366">📤 Send Test Message</button>
+        <span id="wa_result" style="font-weight:bold"></span>
+      </div>
+      <small style="color:#888;display:block;margin-top:8px">التوكن يُخزن في الخادم فقط ولن يظهر هنا بعد الحفظ. الحالة: ${wcfg.configured ? '🟢 مكتملة' : '🔴 ناقصة'}</small>
+    </div>
+    <div class="card"><h3>أتمتة واتساب — الإرسال إلى ${esc(wcfg.recipient)}</h3>
       <div style="display:flex;gap:10px;margin-bottom:6px;flex-wrap:wrap">
         ${['auto','manual','off'].map(m => `<button class="btn" style="${mode===m?'':'background:#ddd;color:#333'}" data-mode="${m}">${modeLbl[m]}</button>`).join('')}
       </div>
@@ -162,6 +177,22 @@ async function show(t) {
       <h4 style="margin-top:20px">السجل</h4>
       <table><tr><th>الحجز</th><th>الرقم</th><th>الحالة</th><th>التاريخ</th></tr>
       ${history.slice(0,30).map(q => `<tr><td>${esc(q.booking_code)}</td><td>${esc(q.target_number)}</td><td>${q.status==='sent'?'✅ أُرسلت':q.status==='pending'?'🟡 معلقة':'⏭️ تخطي'}</td><td>${esc((q.sent_at||q.created_at||'').slice(0,16))}</td></tr>`).join('') || '<tr><td colspan="4">—</td></tr>'}</table></div>`;
+    document.getElementById('wa_save').onclick = async () => {
+      await api('/api/admin/whatsapp-settings', { method: 'PUT', body: JSON.stringify({
+        token: document.getElementById('wa_token').value,
+        phone_id: document.getElementById('wa_phone_id').value,
+        recipient: document.getElementById('wa_recipient').value,
+      }) });
+      show('whatsapp');
+    };
+    document.getElementById('wa_test').onclick = async () => {
+      const res = document.getElementById('wa_result');
+      res.style.color = '#888'; res.textContent = 'جارٍ الإرسال…';
+      const r = await fetch('/api/admin/whatsapp-test', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token } });
+      const d = await r.json();
+      if (d.ok) { res.style.color = '#27ae60'; res.textContent = '✅ WhatsApp Connected Successfully'; }
+      else { res.style.color = '#c0392b'; res.textContent = '❌ WhatsApp Connection Failed' + (d.error ? ' — ' + d.error : ''); }
+    };
     main.querySelectorAll('button[data-mode]').forEach(b => b.onclick = async () => {
       await api('/api/admin/settings/whatsapp_auto', { method: 'PUT', body: JSON.stringify({ value: b.dataset.mode }) });
       show('whatsapp');
