@@ -28,7 +28,7 @@ export function bookingDetailsText(b) {
   if (b.area) L.push(`الحي/المنطقة: ${b.area}`);
   if (b.address) L.push(`العنوان: ${b.address}`);
   if (b.directions) L.push(`تعليمات إضافية: ${b.directions}`);
-  if (b.appointment_date) L.push(`تاريخ الحجز: ${String(b.appointment_date).slice(0, 10)}`);
+  if (b.appointment_date) L.push(`تاريخ الحجز: ${b.appointment_date instanceof Date ? b.appointment_date.toISOString().slice(0, 10) : String(b.appointment_date).slice(0, 10)}`);
   if (b.appointment_time) L.push(`الوقت: ${b.appointment_time}`);
   L.push(`حالة الدفع: ${b.payment_status || 'unpaid'}`);
   return L.join('\n');
