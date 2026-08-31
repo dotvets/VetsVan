@@ -35,6 +35,9 @@ async function bootstrap() {
   await query(`CREATE TABLE IF NOT EXISTS reviews (id SERIAL PRIMARY KEY, booking_code TEXT UNIQUE NOT NULL REFERENCES bookings(booking_code) ON DELETE CASCADE, rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5), comment TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
   await query(`CREATE TABLE IF NOT EXISTS whatsapp_queue (id SERIAL PRIMARY KEY, booking_code TEXT NOT NULL REFERENCES bookings(booking_code) ON DELETE CASCADE, target_number TEXT NOT NULL, message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), sent_at TIMESTAMPTZ)`);
   await query(`CREATE TABLE IF NOT EXISTS whatsapp_logs (id SERIAL PRIMARY KEY, booking_code TEXT NOT NULL, recipient TEXT NOT NULL, message_type TEXT NOT NULL, message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', error TEXT, attempts INT NOT NULL DEFAULT 0, dedupe_key TEXT UNIQUE NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), sent_at TIMESTAMPTZ)`);
+  // Move the legacy default notification number to the clinic's current line.
+  // Do not overwrite a number intentionally configured by an administrator.
+  await query("UPDATE site_settings SET value='+966557236631', updated_at=NOW() WHERE key='bevatel_recipient' AND REPLACE(value, ' ', '') IN ('+966539760530','966539760530')");
   const admin = await query('SELECT id FROM admins LIMIT 1');
   if (!admin.rows.length && process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) { const hash=await bcrypt.hash(process.env.ADMIN_PASSWORD,12); await query('INSERT INTO admins(name,email,password_hash,role) VALUES($1,$2,$3,$4)',[process.env.ADMIN_NAME||'Admin',process.env.ADMIN_EMAIL.toLowerCase(),hash,'super_admin']); }
 }
