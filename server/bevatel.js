@@ -69,7 +69,9 @@ export async function getBevatelSettings(query) {
   const s = Object.fromEntries(rows.map(r => [r.key, r.value]));
   return {
     enabled: (s.bevatel_enabled ?? 'on') === 'on',
-    recipient: s.bevatel_recipient || process.env.BEVATEL_RECIPIENT_NUMBER || '+966539760530',
+    // The clinic booking-notification line. The dashboard value stays available
+    // for an intentional override, while this is the safe production default.
+    recipient: s.bevatel_recipient || process.env.BEVATEL_RECIPIENT_NUMBER || '+966557236631',
     template: s.bevatel_template || DEFAULT_TEMPLATE,
     toggles: {
       new: (s.wa_notify_new ?? '1') === '1',
