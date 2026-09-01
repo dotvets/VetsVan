@@ -7,7 +7,7 @@
 
 export const WA_SENDER_DISPLAY = '+966920011626';
 // Default only; admins can change the recipient from the dashboard settings.
-export const WA_DEFAULT_RECIPIENT = '966557236631';
+export const WA_DEFAULT_RECIPIENT = '966539760530';
 export const WA_DEFAULT_PHONE_ID = '107736745614392'; // phone_number_id of +966920011626 (discovered via Graph API)
 
 export async function getWaConfig(query) {
