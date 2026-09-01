@@ -57,13 +57,51 @@ async function sendTo(cfg, number, text) {
   return d;
 }
 
+// Approved Meta utility template: new_booking_notification (language: English).
+// Templates are required for proactive WhatsApp notifications outside the
+// customer-service conversation window.
+async function sendBookingTemplate(cfg, number, b) {
+  const text = value => String(value ?? '').trim() || '—';
+  const appointment = [
+    b.appointment_date ? String(b.appointment_date).slice(0, 10) : '',
+    b.appointment_time || '',
+  ].filter(Boolean).join('، ') || '—';
+  const address = [b.area, b.address, b.directions].filter(Boolean).join('، ') || '—';
+  const service = b.service_name_ar || b.service_name || '—';
+  const parameters = [
+    b.booking_code, b.customer_name, b.mobile, b.email, service,
+    b.pet_type, b.pet_name, appointment, address,
+    b.service_price != null ? `${b.service_price}` : '—', b.payment_status,
+  ].map(value => ({ type: 'text', text: text(value) }));
+  const r = await fetch(`https://graph.facebook.com/v20.0/${cfg.phoneId}/messages`, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + cfg.token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to: number,
+      type: 'template',
+      template: {
+        name: 'new_booking_notification',
+        language: { code: 'en' },
+        components: [{ type: 'body', parameters }],
+      },
+    }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const err = d?.error || {};
+    throw Object.assign(new Error(err.error_user_msg || err.message || ('HTTP ' + r.status)), { code: err.code, subcode: err.error_subcode });
+  }
+  return d;
+}
+
 export async function sendWhatsAppBookingNotification(b, query, onlyNumber) {
   const cfg = await getWaConfig(query);
   if (!cfg.configured) { console.log('WhatsApp not configured — skipping notification for', b.booking_code); return false; }
   const number = onlyNumber || cfg.recipient;
   try {
-    await sendTo(cfg, number, bookingDetailsText(b));
-    console.log('WhatsApp sent to', number, 'for', b.booking_code);
+    await sendBookingTemplate(cfg, number, b);
+    console.log('WhatsApp booking template sent to', number, 'for', b.booking_code);
     return true;
   } catch (e) {
     console.error('WhatsApp failed to', number, ':', e.message);
