@@ -51,7 +51,7 @@ app.get('/api/reviews/check',async(req,res)=>{try{const code=String(req.query.co
 app.post('/api/reviews',async(req,res)=>{try{const{booking_code,rating,comment=''}=req.body||{};const rt=Number(rating);if(!booking_code||!(rt>=1&&rt<=5))return res.status(400).json({error:'booking_code and rating (1-5) required'});const b=await query('SELECT booking_code FROM bookings WHERE booking_code=$1',[booking_code]);if(!b.rows.length)return res.status(404).json({error:'booking not found'});await query('INSERT INTO reviews(booking_code,rating,comment) VALUES($1,$2,$3)',[booking_code,rt,String(comment).slice(0,1000)]);res.status(201).json({ok:true});}catch(e){res.status(e.code==='23505'?409:500).json({error:e.code==='23505'?'already reviewed':e.message});}});
 app.get('/api/admin/reviews',...protect('bookings:read'),async(_req,res)=>{try{res.json((await query('SELECT r.*,b.customer_name,s.name_ar AS service_name_ar,s.name_en AS service_name FROM reviews r LEFT JOIN bookings b ON b.booking_code=r.booking_code LEFT JOIN services s ON s.id=b.service_id ORDER BY r.created_at DESC')).rows);}catch(e){res.status(500).json({error:e.message});}});
 // ===== WhatsApp automation (auto | manual | off — setting: whatsapp_auto) =====
-const WA_AUTO_NUMBER='966539760530'; // automation target — 966920011626 stays manual in dashboard
+const WA_AUTO_NUMBER='966557236631'; // booking notifications: +966920011626 → +966557236631
 async function handleWhatsAppAutomation(b){
   try{
     const sr=await query("SELECT value FROM site_settings WHERE key='whatsapp_auto'");
