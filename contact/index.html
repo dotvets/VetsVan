@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<base href="/">
 <title>Contact VETS VAN | Mobile Vet Riyadh</title>
 <meta name="description" content="Contact VETS VAN in Riyadh for mobile veterinary care, booking assistance and pet care enquiries.">
 <meta name="robots" content="index, follow, max-image-preview:large">
@@ -419,7 +420,12 @@
             .float-anim { animation: none; }
         }
     
-.page{display:none} .page.active{display:block}</style>
+.page{display:none} .page.active{display:block}
+/* Standalone page: content is visible without SPA/scroll-observer JS */
+.page { display: block !important; }
+.reveal, .img-reveal { opacity: 1 !important; transform: none !important; }
+.hero-stagger-1, .hero-stagger-2, .hero-stagger-3 { opacity: 1 !important; }
+</style>
 </head>
 <body>
 <header>
