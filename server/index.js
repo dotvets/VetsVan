@@ -412,4 +412,27 @@ app.post('/api/admin/payments/:bookingCode/verify', ...protect('bookings:write')
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Dedicated indexable booking URL. Reuses the single existing booking UI and logic.
+app.get(['/book', '/book/'], async (_req, res) => {
+  try {
+    let html = await fs.readFile(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const title = 'Book a Mobile Vet Visit in Riyadh | VETS VAN';
+    const description = 'Book a VETS VAN mobile veterinary visit in Riyadh. Appointment availability and booking source are managed live by the clinic.';
+    const canonical = 'https://www.vetsvan.com/book/';
+    html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${title}</title>`);
+    html = html.replace(/<meta\s+name=["']description["'][^>]*>/i, `<meta name="description" content="${description}">`);
+    html = html.replace(/<link\s+rel=["']canonical["'][^>]*>/i, `<link rel="canonical" href="${canonical}">`);
+    html = html.replace(/<meta\s+property=["']og:title["'][^>]*>/i, `<meta property="og:title" content="${title}">`);
+    html = html.replace(/<meta\s+property=["']og:description["'][^>]*>/i, `<meta property="og:description" content="${description}">`);
+    html = html.replace(/<meta\s+property=["']og:url["'][^>]*>/i, `<meta property="og:url" content="${canonical}">`);
+    html = html.replace(/<meta\s+name=["']twitter:title["'][^>]*>/i, `<meta name="twitter:title" content="${title}">`);
+    html = html.replace(/<meta\s+name=["']twitter:description["'][^>]*>/i, `<meta name="twitter:description" content="${description}">`);
+    res.set('Cache-Control', 'public, max-age=300');
+    res.type('html').send(html);
+  } catch (error) {
+    console.error('book page:', error.message);
+    res.status(500).send('Unable to load booking page');
+  }
+});
+
 bootstrap().then(()=>app.listen(PORT,'0.0.0.0',()=>console.log(`VETS VAN server listening on ${PORT}`))).catch(e=>{console.error(e);process.exit(1);});
