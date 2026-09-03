@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -15,10 +16,37 @@ const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-render';
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(48).toString('hex');
+if (!process.env.JWT_SECRET) console.warn('JWT_SECRET is not configured; using an ephemeral secret for this process.');
 const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) : null;
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
+// Baseline security headers without a restrictive CSP that could break third-party booking/maps assets.
+app.use((req,res,next)=>{
+  res.setHeader('X-Content-Type-Options','nosniff');
+  res.setHeader('X-Frame-Options','SAMEORIGIN');
+  res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=(self)');
+  next();
+});
+
+const rateBuckets = new Map();
+function rateLimit({ windowMs, max }) {
+  return (req,res,next)=>{
+    const now=Date.now();
+    const ip=(req.headers['x-forwarded-for']||req.socket.remoteAddress||'unknown').toString().split(',')[0].trim();
+    const key=req.path+'|'+ip;
+    let b=rateBuckets.get(key);
+    if(!b||now-b.start>=windowMs){ b={start:now,count:0}; rateBuckets.set(key,b); }
+    b.count++;
+    if(b.count>max){ res.setHeader('Retry-After',String(Math.ceil((windowMs-(now-b.start))/1000))); return res.status(429).json({error:'Too many requests. Please try again later.'}); }
+    next();
+  };
+}
+const loginRateLimit=rateLimit({windowMs:15*60*1000,max:10});
+const publicWriteRateLimit=rateLimit({windowMs:60*60*1000,max:30});
+setInterval(()=>{ const now=Date.now(); for(const [k,b] of rateBuckets) if(now-b.start>2*60*60*1000) rateBuckets.delete(k); },30*60*1000).unref();
+
 app.use((req,res,next)=>req.path.startsWith('/admin')?next():express.static(path.join(__dirname,'..'))(req,res,next));
 async function query(text, params = []) { if (!pool) throw new Error('DATABASE_URL is not configured'); return pool.query(text, params); }
 async function bootstrap() {
@@ -44,7 +72,7 @@ async function bootstrap() {
 function auth(req,res,next){const token=(req.headers.authorization||'').replace(/^Bearer\s+/i,'');try{req.user=jwt.verify(token,JWT_SECRET);next();}catch{res.status(401).json({error:'Unauthorized'});}}
 async function audit(req,action,resource,details={}){if(pool&&req.user)await query('INSERT INTO audit_logs(admin_id,action,resource,details) VALUES($1,$2,$3,$4)',[req.user.id,action,resource,JSON.stringify(details)]);}
 const protect=p=>[auth,requirePermission(p)];
-app.post('/api/auth/login',async(req,res)=>{try{const{email,password}=req.body;if(!email||!password)return res.status(400).json({error:'Email and password are required'});const r=await query('SELECT * FROM admins WHERE LOWER(email)=LOWER($1) AND active=true LIMIT 1',[email]);if(!r.rows.length||!(await bcrypt.compare(password,r.rows[0].password_hash)))return res.status(401).json({error:'Invalid credentials'});const a=r.rows[0];const token=jwt.sign({id:a.id,email:a.email,name:a.name,role:normalizeRole(a.role)},JWT_SECRET,{expiresIn:'12h'});res.json({token,user:{id:a.id,name:a.name,email:a.email,role:normalizeRole(a.role)}});}catch(e){res.status(500).json({error:e.message});}});
+app.post('/api/auth/login',loginRateLimit,async(req,res)=>{try{const{email,password}=req.body;if(!email||!password)return res.status(400).json({error:'Email and password are required'});const r=await query('SELECT * FROM admins WHERE LOWER(email)=LOWER($1) AND active=true LIMIT 1',[email]);if(!r.rows.length||!(await bcrypt.compare(password,r.rows[0].password_hash)))return res.status(401).json({error:'Invalid credentials'});const a=r.rows[0];const token=jwt.sign({id:a.id,email:a.email,name:a.name,role:normalizeRole(a.role)},JWT_SECRET,{expiresIn:'12h'});res.json({token,user:{id:a.id,name:a.name,email:a.email,role:normalizeRole(a.role)}});}catch(e){res.status(500).json({error:e.message});}});
 app.get('/api/health',(_req,res)=>res.json({ok:true,database:!!pool}));
 // Public booking UI configuration. Only non-sensitive values are exposed.
 app.get('/api/booking-config', async (_req, res) => {
@@ -65,7 +93,7 @@ app.get('/api/booking-config', async (_req, res) => {
 });
 // ===== Reviews: public submit (one per booking) + admin list =====
 app.get('/api/reviews/check',async(req,res)=>{try{const code=String(req.query.code||'');if(!code)return res.status(400).json({error:'code required'});const b=await query('SELECT booking_code,customer_name,service_id FROM bookings WHERE booking_code=$1',[code]);if(!b.rows.length)return res.status(404).json({error:'booking not found'});const r=await query('SELECT id FROM reviews WHERE booking_code=$1',[code]);res.json({ok:true,already_reviewed:r.rows.length>0});}catch(e){res.status(500).json({error:e.message});}});
-app.post('/api/reviews',async(req,res)=>{try{const{booking_code,rating,comment=''}=req.body||{};const rt=Number(rating);if(!booking_code||!(rt>=1&&rt<=5))return res.status(400).json({error:'booking_code and rating (1-5) required'});const b=await query('SELECT booking_code FROM bookings WHERE booking_code=$1',[booking_code]);if(!b.rows.length)return res.status(404).json({error:'booking not found'});await query('INSERT INTO reviews(booking_code,rating,comment) VALUES($1,$2,$3)',[booking_code,rt,String(comment).slice(0,1000)]);res.status(201).json({ok:true});}catch(e){res.status(e.code==='23505'?409:500).json({error:e.code==='23505'?'already reviewed':e.message});}});
+app.post('/api/reviews',publicWriteRateLimit,async(req,res)=>{try{const{booking_code,rating,comment=''}=req.body||{};const rt=Number(rating);if(!booking_code||!(rt>=1&&rt<=5))return res.status(400).json({error:'booking_code and rating (1-5) required'});const b=await query('SELECT booking_code FROM bookings WHERE booking_code=$1',[booking_code]);if(!b.rows.length)return res.status(404).json({error:'booking not found'});await query('INSERT INTO reviews(booking_code,rating,comment) VALUES($1,$2,$3)',[booking_code,rt,String(comment).slice(0,1000)]);res.status(201).json({ok:true});}catch(e){res.status(e.code==='23505'?409:500).json({error:e.code==='23505'?'already reviewed':e.message});}});
 app.get('/api/admin/reviews',...protect('bookings:read'),async(_req,res)=>{try{res.json((await query('SELECT r.*,b.customer_name,s.name_ar AS service_name_ar,s.name_en AS service_name FROM reviews r LEFT JOIN bookings b ON b.booking_code=r.booking_code LEFT JOIN services s ON s.id=b.service_id ORDER BY r.created_at DESC')).rows);}catch(e){res.status(500).json({error:e.message});}});
 // ===== WhatsApp automation (auto | manual | off — setting: whatsapp_auto) =====
 async function handleWhatsAppAutomation(b){
@@ -99,7 +127,7 @@ async function notifyIfNewlyPaid(bookingCode){
 app.get('/api/admin/me',auth,(req,res)=>res.json({user:req.user,permissions:ROLES[normalizeRole(req.user.role)]||[]}));
 app.get('/api/dashboard',...protect('dashboard:read'),async(_req,res)=>{try{const[t,p,c,m,recent]=await Promise.all([query('SELECT COUNT(*)::int AS n FROM bookings'),query("SELECT COUNT(*)::int AS n FROM bookings WHERE status IN ('new','pending')"),query("SELECT COUNT(*)::int AS n FROM bookings WHERE status='completed'"),query("SELECT COUNT(*)::int AS n FROM messages WHERE status='unread'"),query('SELECT b.*,s.name_en AS service_name FROM bookings b LEFT JOIN services s ON s.id=b.service_id ORDER BY b.created_at DESC LIMIT 8')]);res.json({stats:{total:t.rows[0].n,pending:p.rows[0].n,completed:c.rows[0].n,unreadMessages:m.rows[0].n},recent:recent.rows});}catch(e){res.status(500).json({error:e.message});}});
 app.get('/api/bookings',...protect('bookings:read'),async(req,res)=>{try{const q=String(req.query.search||'').trim(),status=String(req.query.status||'').trim(),p=[],w=[];if(q){p.push(`%${q}%`);w.push(`(b.customer_name ILIKE $${p.length} OR b.pet_name ILIKE $${p.length} OR b.booking_code ILIKE $${p.length})`);}if(status){p.push(status);w.push(`b.status=$${p.length}`);}const sql=`SELECT b.*,s.name_en AS service_name FROM bookings b LEFT JOIN services s ON s.id=b.service_id ${w.length?'WHERE '+w.join(' AND '):''} ORDER BY b.appointment_date DESC NULLS LAST,b.created_at DESC`;res.json((await query(sql,p)).rows);}catch(e){res.status(500).json({error:e.message});}});
-app.post('/api/bookings',async(req,res)=>{try{
+app.post('/api/bookings',publicWriteRateLimit,async(req,res)=>{try{
   const b=req.body, code='VV-'+Date.now().toString().slice(-7);
   // Server-side validation of required fields
   if(!b.customer_name||!String(b.customer_name).trim())return res.status(400).json({error:'الاسم مطلوب'});
@@ -155,7 +183,7 @@ app.delete('/api/admin/services/:id',...protect('services:write'),async(req,res)
 app.get('/api/content',async(_req,res)=>{try{const rows=(await query('SELECT content_key,value_en,value_ar FROM site_content')).rows;res.json(Object.fromEntries(rows.map(x=>[x.content_key,{en:x.value_en,ar:x.value_ar}])));}catch(e){res.status(500).json({error:e.message});}});
 app.put('/api/admin/content/:key',...protect('content:write'),async(req,res)=>{try{const{en='',ar=''}=req.body,r=await query('INSERT INTO site_content(content_key,value_en,value_ar) VALUES($1,$2,$3) ON CONFLICT(content_key) DO UPDATE SET value_en=$2,value_ar=$3,updated_at=NOW() RETURNING *',[req.params.key,en,ar]);await audit(req,'update','content',{key:req.params.key});res.json(r.rows[0]);}catch(e){res.status(500).json({error:e.message});}});
 app.get('/api/admin/messages',...protect('messages:read'),async(_req,res)=>{try{res.json((await query('SELECT * FROM messages ORDER BY created_at DESC')).rows);}catch(e){res.status(500).json({error:e.message});}});
-app.post('/api/messages',async(req,res)=>{try{const x=req.body,r=await query('INSERT INTO messages(name,mobile,email,subject,message) VALUES($1,$2,$3,$4,$5) RETURNING id',[x.name,x.mobile||null,x.email||null,x.subject||null,x.message]);res.status(201).json({ok:true,id:r.rows[0].id});}catch(e){res.status(500).json({error:e.message});}});
+app.post('/api/messages',publicWriteRateLimit,async(req,res)=>{try{const x=req.body,r=await query('INSERT INTO messages(name,mobile,email,subject,message) VALUES($1,$2,$3,$4,$5) RETURNING id',[x.name,x.mobile||null,x.email||null,x.subject||null,x.message]);res.status(201).json({ok:true,id:r.rows[0].id});}catch(e){res.status(500).json({error:e.message});}});
 app.get('/api/admin/settings',...protect('settings:read'),async(_req,res)=>{try{const rows=(await query('SELECT key,value FROM site_settings')).rows;res.json(Object.fromEntries(rows.map(x=>[x.key,x.value])));}catch(e){res.status(500).json({error:e.message});}});
 app.put('/api/admin/settings/:key',...protect('settings:write'),async(req,res)=>{try{const r=await query('INSERT INTO site_settings(key,value) VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=$2,updated_at=NOW() RETURNING *',[req.params.key,String(req.body.value??'')]);await audit(req,'update','setting',{key:req.params.key});res.json(r.rows[0]);}catch(e){res.status(500).json({error:e.message});}});
 app.get('/api/admin/users',...protect('__super_admin__'),async(_req,res)=>{try{res.json((await query('SELECT id,name,email,role,active,created_at,updated_at FROM admins ORDER BY created_at')).rows.map(x=>({...x,role:normalizeRole(x.role)})));}catch(e){res.status(500).json({error:e.message});}});
