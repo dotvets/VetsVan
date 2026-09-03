@@ -1,32 +1,13 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://vetsvan.com/sitemap.xml
-```[cite: 1]
-
----
-
-### 2. `sitemap.xml`
-Place this file in your root directory as well (`[https://vetsvan.com/sitemap.xml](https://vetsvan.com/sitemap.xml)`). Because your website utilizes a dynamic single-page application structure with multiple views (`home`, `services`, `about`, `contact`, `book`), listing the main domain URL with multilingual alternate references optimizes how search engines index your content[cite: 1].
-
-```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
-    <url>
-        <loc>https://vetsvan.com/</loc>
-        <lastmod>2026-08-19</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>1.0</priority>
-        <xhtml:link rel="alternate" hreflang="en" href="https://vetsvan.com/"/>
-        <xhtml:link rel="alternate" hreflang="ar" href="https://vetsvan.com/"/>
-    </url>
+  <url>
+    <loc>https://www.vetsvan.com/</loc>
+    <lastmod>2026-09-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.vetsvan.com/" />
+    <xhtml:link rel="alternate" hreflang="ar" href="https://www.vetsvan.com/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.vetsvan.com/" />
+  </url>
 </urlset>
-```[cite: 1]
-
----
-
-### Next Steps for Implementation:
-1. Save both files (`robots.txt` and `sitemap.xml`) using a plain text editor (like Notepad or VS Code).
-2. Upload them to the root public folder of your web hosting environment (where your `index.html` file resides).
-3. Log in to **Google Search Console**, navigate to the **Sitemaps** section, and submit your sitemap URL (`[https://vetsvan.com/sitemap.xml](https://vetsvan.com/sitemap.xml)`)[cite: 1] to jumpstart indexing for Riyadh and Saudi Arabia searches!

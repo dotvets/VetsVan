@@ -46,6 +46,23 @@ async function audit(req,action,resource,details={}){if(pool&&req.user)await que
 const protect=p=>[auth,requirePermission(p)];
 app.post('/api/auth/login',async(req,res)=>{try{const{email,password}=req.body;if(!email||!password)return res.status(400).json({error:'Email and password are required'});const r=await query('SELECT * FROM admins WHERE LOWER(email)=LOWER($1) AND active=true LIMIT 1',[email]);if(!r.rows.length||!(await bcrypt.compare(password,r.rows[0].password_hash)))return res.status(401).json({error:'Invalid credentials'});const a=r.rows[0];const token=jwt.sign({id:a.id,email:a.email,name:a.name,role:normalizeRole(a.role)},JWT_SECRET,{expiresIn:'12h'});res.json({token,user:{id:a.id,name:a.name,email:a.email,role:normalizeRole(a.role)}});}catch(e){res.status(500).json({error:e.message});}});
 app.get('/api/health',(_req,res)=>res.json({ok:true,database:!!pool}));
+// Public booking UI configuration. Only non-sensitive values are exposed.
+app.get('/api/booking-config', async (_req, res) => {
+  const fallback = { source: 'internal', digitail_clinic_slug: 'vetsvan-01-5519deb-ryd' };
+  res.set('Cache-Control', 'no-store');
+  if (!pool) return res.json(fallback);
+  try {
+    const rows = (await query("SELECT key,value FROM site_settings WHERE key IN ('booking_source','digitail_clinic_slug')")).rows;
+    const settings = Object.fromEntries(rows.map(row => [row.key, row.value]));
+    res.json({
+      source: settings.booking_source === 'digitail' ? 'digitail' : 'internal',
+      digitail_clinic_slug: settings.digitail_clinic_slug || fallback.digitail_clinic_slug
+    });
+  } catch (error) {
+    console.error('booking-config:', error.message);
+    res.json(fallback);
+  }
+});
 // ===== Reviews: public submit (one per booking) + admin list =====
 app.get('/api/reviews/check',async(req,res)=>{try{const code=String(req.query.code||'');if(!code)return res.status(400).json({error:'code required'});const b=await query('SELECT booking_code,customer_name,service_id FROM bookings WHERE booking_code=$1',[code]);if(!b.rows.length)return res.status(404).json({error:'booking not found'});const r=await query('SELECT id FROM reviews WHERE booking_code=$1',[code]);res.json({ok:true,already_reviewed:r.rows.length>0});}catch(e){res.status(500).json({error:e.message});}});
 app.post('/api/reviews',async(req,res)=>{try{const{booking_code,rating,comment=''}=req.body||{};const rt=Number(rating);if(!booking_code||!(rt>=1&&rt<=5))return res.status(400).json({error:'booking_code and rating (1-5) required'});const b=await query('SELECT booking_code FROM bookings WHERE booking_code=$1',[booking_code]);if(!b.rows.length)return res.status(404).json({error:'booking not found'});await query('INSERT INTO reviews(booking_code,rating,comment) VALUES($1,$2,$3)',[booking_code,rt,String(comment).slice(0,1000)]);res.status(201).json({ok:true});}catch(e){res.status(e.code==='23505'?409:500).json({error:e.code==='23505'?'already reviewed':e.message});}});
