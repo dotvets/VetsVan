@@ -41,6 +41,7 @@
     }
     </script>
     <link rel="icon" type="image/png" href="Icon.png">
+    <link rel="preload" as="image" href="/clinic-van.png" fetchpriority="high">
     
     <!-- English & Arabic Modern Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -282,6 +283,12 @@
         .lang-switcher a:hover { color: var(--purple); }
         .lang-separator { color: #9A9A9A; font-size: 0.72rem; }
 
+        .hero-kicker { display:inline-flex; align-items:center; gap:.5rem; margin-bottom:1rem; color:var(--purple); font-size:.9rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+        html[lang="ar"] .hero-kicker { letter-spacing:0; text-transform:none; }
+
+        .service-learn-link { display:inline-flex; align-items:center; gap:.55rem; margin-top:1.25rem; color:var(--purple); font-weight:800; font-size:.95rem; }
+        .service-learn-link:hover { gap:.8rem; }
+
         /* PAGE TRANSITIONS */
         .page { display: none; }
         .page.active { display: block; animation: pageCinematic 0.6s var(--transition-smooth) forwards; }
@@ -449,6 +456,20 @@
             .float-anim { animation: none; }
         }
     </style>
+    <script type="application/ld+json">
+    {
+      "@context":"https://schema.org",
+      "@type":"FAQPage",
+      "mainEntity":[
+        {"@type":"Question","name":"Which areas does VETS VAN cover?","acceptedAnswer":{"@type":"Answer","text":"VETS VAN provides mobile veterinary visits across Riyadh. Exact appointment availability depends on the neighborhood and schedule."}},
+        {"@type":"Question","name":"What pets does VETS VAN treat?","acceptedAnswer":{"@type":"Answer","text":"The current booking flow is designed for cats and dogs. Contact VETS VAN for cases that need clarification before booking."}},
+        {"@type":"Question","name":"Can VETS VAN perform diagnostics during the visit?","acceptedAnswer":{"@type":"Answer","text":"Available services include laboratory diagnostics and diagnostic imaging depending on the pet's condition and appointment type."}},
+        {"@type":"Question","name":"Does VETS VAN provide pet travel certificates?","acceptedAnswer":{"@type":"Answer","text":"Yes. Health and travel certificate services are available, with requirements varying by destination and travel date."}},
+        {"@type":"Question","name":"What happens if a pet needs surgery or hospitalization?","acceptedAnswer":{"@type":"Answer","text":"Cases needing advanced facility-based care can be referred through the veterinary partner network."}},
+        {"@type":"Question","name":"Is VETS VAN an emergency hospital?","acceptedAnswer":{"@type":"Answer","text":"VETS VAN is a mobile veterinary service. Urgent cases that need continuous monitoring or hospital-level intervention may require referral to a veterinary hospital."}}
+      ]
+    }
+    </script>
 </head>
 <body>
 
@@ -503,6 +524,7 @@
         <section class="container">
             <div class="hero-editorial-panel">
                 <div class="hero-text-content">
+                    <p class="hero-kicker hero-stagger-1"><span class="en-only">Mobile Veterinary Care in Riyadh</span><span class="ar-only">رعاية بيطرية متنقلة في الرياض</span></p>
                     <h1 class="title-huge hero-stagger-1">
                         <span class="en-only">Premium<br>Pet Care,<br><span style="color: var(--purple);">Delivered.</span></span>
                         <span class="ar-only">رعاية بيطرية<br>متميزة،<br><span style="color: var(--purple);">إلى باب بيتك.</span></span>
@@ -527,7 +549,7 @@
                 
                 <!-- PNG Vehicle interacting visually with the background -->
                 <div class="hero-van-wrapper">
-                    <img src="clinic-van.png" alt="VETS VAN Mobile Clinic" class="hero-van">
+                    <img src="clinic-van.png" alt="VETS VAN mobile veterinary clinic in Riyadh" class="hero-van" fetchpriority="high" decoding="async">
                 </div>
             </div>
         </section>
@@ -589,6 +611,7 @@
                         <span class="en-only">Vaccinations</span><span class="ar-only">التطعيمات</span>
                     </h3>
                     <p class="subtitle-lg" style="margin-bottom: 0;"><span class="en-only">Essential core and lifestyle vaccines administered stress-free to protect against preventable diseases.</span><span class="ar-only">اللقاحات الأساسية والوقائية تُعطى في بيئة خالية من التوتر للحماية من الأمراض.</span></p>
+                    <a href="/services/vaccinations/" class="service-learn-link"><span class="en-only">Vaccination details</span><span class="ar-only">تفاصيل خدمة التطعيمات</span> <i class="fa-solid fa-arrow-right en-only"></i><i class="fa-solid fa-arrow-left ar-only"></i></a>
                 </div>
                 <div class="editorial-card reveal">
                     <span class="num-editorial">03</span>
@@ -605,6 +628,7 @@
                         <span class="en-only">Dental Cleanings</span><span class="ar-only">تنظيف الأسنان</span>
                     </h3>
                     <p class="subtitle-lg" style="margin-bottom: 0;"><span class="en-only">Professional oral hygiene, scaling, and dental care to keep your pet's smile healthy and pain-free.</span><span class="ar-only">عناية احترافية بصحة الفم والأسنان لضمان بقاء ابتسامة حيوانك الأليف صحية وخالية من الألم.</span></p>
+                    <a href="/services/dental-cleaning/" class="service-learn-link"><span class="en-only">Dental cleaning details</span><span class="ar-only">تفاصيل خدمة تنظيف الأسنان</span> <i class="fa-solid fa-arrow-right en-only"></i><i class="fa-solid fa-arrow-left ar-only"></i></a>
                 </div>
             </div>
             <div class="text-center reveal" style="margin-top: 3rem;">
