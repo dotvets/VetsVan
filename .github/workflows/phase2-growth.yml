@@ -1,0 +1,81 @@
+name: Apply Phase 2 Growth Improvements
+on:
+  push:
+    paths:
+      - '.github/workflows/phase2-growth.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Improve homepage SEO and conversion
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+
+          # Preload the hero visual for faster LCP.
+          preload='    <link rel="preload" as="image" href="/clinic-van.png" fetchpriority="high">\n'
+          if preload.strip() not in s:
+              anchor='    <link rel="icon" type="image/png" href="Icon.png">\n'
+              if anchor not in s: raise SystemExit('favicon anchor missing')
+              s=s.replace(anchor, anchor+preload, 1)
+
+          # Add a Riyadh-specific search signal while preserving the brand tagline.
+          old='''                <div class="hero-text-content">\n                    <h1 class="title-huge hero-stagger-1">'''
+          new='''                <div class="hero-text-content">\n                    <p class="hero-kicker hero-stagger-1"><span class="en-only">Mobile Veterinary Care in Riyadh</span><span class="ar-only">رعاية بيطرية متنقلة في الرياض</span></p>\n                    <h1 class="title-huge hero-stagger-1">'''
+          if 'Mobile Veterinary Care in Riyadh' not in s:
+              if old not in s: raise SystemExit('hero anchor missing')
+              s=s.replace(old,new,1)
+
+          css_anchor="        /* PAGE TRANSITIONS */\n"
+          kicker_css="""        .hero-kicker { display:inline-flex; align-items:center; gap:.5rem; margin-bottom:1rem; color:var(--purple); font-size:.9rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }\n        html[lang=\"ar\"] .hero-kicker { letter-spacing:0; text-transform:none; }\n\n"""
+          if '.hero-kicker {' not in s:
+              if css_anchor not in s: raise SystemExit('css anchor missing')
+              s=s.replace(css_anchor,kicker_css+css_anchor,1)
+
+          s=s.replace('<img src="clinic-van.png" alt="VETS VAN Mobile Clinic" class="hero-van">','<img src="clinic-van.png" alt="VETS VAN mobile veterinary clinic in Riyadh" class="hero-van" fetchpriority="high" decoding="async">',1)
+
+          # Internal links to the dedicated SEO service pages.
+          vacc='''<p class="subtitle-lg" style="margin-bottom: 0;"><span class="en-only">Essential core and lifestyle vaccines administered stress-free to protect against preventable diseases.</span><span class="ar-only">اللقاحات الأساسية والوقائية تُعطى في بيئة خالية من التوتر للحماية من الأمراض.</span></p>'''
+          vacc_new=vacc+'''\n                    <a href="/services/vaccinations/" class="service-learn-link"><span class="en-only">Vaccination details</span><span class="ar-only">تفاصيل خدمة التطعيمات</span> <i class="fa-solid fa-arrow-right en-only"></i><i class="fa-solid fa-arrow-left ar-only"></i></a>'''
+          if '/services/vaccinations/' not in s[s.find('<!-- SERVICES PREVIEW'):s.find('<!-- SOLAR CLINIC FEATURE')]:
+              if vacc not in s: raise SystemExit('vaccination card anchor missing')
+              s=s.replace(vacc,vacc_new,1)
+
+          dental='''<p class="subtitle-lg" style="margin-bottom: 0;"><span class="en-only">Professional oral hygiene, scaling, and dental care to keep your pet's smile healthy and pain-free.</span><span class="ar-only">عناية احترافية بصحة الفم والأسنان لضمان بقاء ابتسامة حيوانك الأليف صحية وخالية من الألم.</span></p>'''
+          dental_new=dental+'''\n                    <a href="/services/dental-cleaning/" class="service-learn-link"><span class="en-only">Dental cleaning details</span><span class="ar-only">تفاصيل خدمة تنظيف الأسنان</span> <i class="fa-solid fa-arrow-right en-only"></i><i class="fa-solid fa-arrow-left ar-only"></i></a>'''
+          if '/services/dental-cleaning/' not in s[s.find('<!-- SERVICES PREVIEW'):s.find('<!-- SOLAR CLINIC FEATURE')]:
+              if dental not in s: raise SystemExit('dental card anchor missing')
+              s=s.replace(dental,dental_new,1)
+
+          link_css="""        .service-learn-link { display:inline-flex; align-items:center; gap:.55rem; margin-top:1.25rem; color:var(--purple); font-weight:800; font-size:.95rem; }\n        .service-learn-link:hover { gap:.8rem; }\n\n"""
+          if '.service-learn-link {' not in s:
+              if css_anchor not in s: raise SystemExit('css anchor missing for service links')
+              s=s.replace(css_anchor,link_css+css_anchor,1)
+
+          # Structured FAQ data matching the visible FAQ content.
+          if '"@type":"FAQPage"' not in s:
+              faq='''    <script type="application/ld+json">\n    {\n      "@context":"https://schema.org",\n      "@type":"FAQPage",\n      "mainEntity":[\n        {"@type":"Question","name":"Which areas does VETS VAN cover?","acceptedAnswer":{"@type":"Answer","text":"VETS VAN provides mobile veterinary visits across Riyadh. Exact appointment availability depends on the neighborhood and schedule."}},\n        {"@type":"Question","name":"What pets does VETS VAN treat?","acceptedAnswer":{"@type":"Answer","text":"The current booking flow is designed for cats and dogs. Contact VETS VAN for cases that need clarification before booking."}},\n        {"@type":"Question","name":"Can VETS VAN perform diagnostics during the visit?","acceptedAnswer":{"@type":"Answer","text":"Available services include laboratory diagnostics and diagnostic imaging depending on the pet's condition and appointment type."}},\n        {"@type":"Question","name":"Does VETS VAN provide pet travel certificates?","acceptedAnswer":{"@type":"Answer","text":"Yes. Health and travel certificate services are available, with requirements varying by destination and travel date."}},\n        {"@type":"Question","name":"What happens if a pet needs surgery or hospitalization?","acceptedAnswer":{"@type":"Answer","text":"Cases needing advanced facility-based care can be referred through the veterinary partner network."}},\n        {"@type":"Question","name":"Is VETS VAN an emergency hospital?","acceptedAnswer":{"@type":"Answer","text":"VETS VAN is a mobile veterinary service. Urgent cases that need continuous monitoring or hospital-level intervention may require referral to a veterinary hospital."}}\n      ]\n    }\n    </script>\n'''
+              s=s.replace('</head>',faq+'</head>',1)
+
+          p.write_text(s)
+          PY
+      - name: Verify changes
+        run: |
+          grep -q 'Mobile Veterinary Care in Riyadh' index.html
+          grep -q '/services/vaccinations/' index.html
+          grep -q '/services/dental-cleaning/' index.html
+          grep -q '"@type":"FAQPage"' index.html
+          grep -q 'fetchpriority="high"' index.html
+      - name: Commit changes and remove workflow
+        run: |
+          rm .github/workflows/phase2-growth.yml
+          git config user.name "Mohamed-Omaar"
+          git config user.email "mohamed.mostafa.omaar@gmail.com"
+          git add index.html .github/workflows/phase2-growth.yml
+          git commit -m "Improve homepage discovery and service journeys"
+          git push
