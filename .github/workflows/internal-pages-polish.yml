@@ -1,0 +1,107 @@
+name: Polish internal pages
+on:
+  push:
+    paths:
+      - '.github/workflows/internal-pages-polish.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Improve Services About and Contact
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+
+          # Services: add detail links alongside booking for pages that already have dedicated SEO routes.
+          replacements = [
+            (
+              '<a href="#" onclick="navTo(\'book\')" style="font-weight: 800; font-size: 1.1rem;"><span class="en-only">Book This Service &rarr;</span><span class="ar-only">احجز هذه الخدمة &larr;</span></a>',
+              '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center"><a href="/services/vaccinations/" style="font-weight:800;font-size:1.05rem"><span class="en-only">View Details &rarr;</span><span class="ar-only">عرض التفاصيل &larr;</span></a><a href="#" onclick="navTo(\'book\')" style="font-weight:800;font-size:1.05rem;color:var(--gray)"><span class="en-only">Book This Service</span><span class="ar-only">احجز هذه الخدمة</span></a></div>',
+              2
+            ),
+            (
+              '<a href="#" onclick="navTo(\'book\')" style="font-weight: 800; font-size: 1.1rem;"><span class="en-only">Book This Service &rarr;</span><span class="ar-only">احجز هذه الخدمة &larr;</span></a>',
+              '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center"><a href="/services/dental-cleaning/" style="font-weight:800;font-size:1.05rem"><span class="en-only">View Details &rarr;</span><span class="ar-only">عرض التفاصيل &larr;</span></a><a href="#" onclick="navTo(\'book\')" style="font-weight:800;font-size:1.05rem;color:var(--gray)"><span class="en-only">Book This Service</span><span class="ar-only">احجز هذه الخدمة</span></a></div>',
+              5
+            ),
+            (
+              '<a href="#" onclick="navTo(\'book\')" style="font-weight: 800; font-size: 1.1rem;"><span class="en-only">Book This Service &rarr;</span><span class="ar-only">احجز هذه الخدمة &larr;</span></a>',
+              '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center"><a href="/services/diagnostic-imaging/" style="font-weight:800;font-size:1.05rem"><span class="en-only">View Details &rarr;</span><span class="ar-only">عرض التفاصيل &larr;</span></a><a href="#" onclick="navTo(\'book\')" style="font-weight:800;font-size:1.05rem;color:var(--gray)"><span class="en-only">Book This Service</span><span class="ar-only">احجز هذه الخدمة</span></a></div>',
+              7
+            ),
+            (
+              '<a href="#" onclick="navTo(\'book\')" style="font-weight: 800; font-size: 1.1rem;"><span class="en-only">Book This Service &rarr;</span><span class="ar-only">احجز هذه الخدمة &larr;</span></a>',
+              '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center"><a href="/services/pet-travel-certificate/" style="font-weight:800;font-size:1.05rem"><span class="en-only">View Details &rarr;</span><span class="ar-only">عرض التفاصيل &larr;</span></a><a href="#" onclick="navTo(\'book\')" style="font-weight:800;font-size:1.05rem;color:var(--gray)"><span class="en-only">Book This Service</span><span class="ar-only">احجز هذه الخدمة</span></a></div>',
+              8
+            )
+          ]
+          # Target service cards by splitting the Services page into cards, avoiding accidental replacements elsewhere.
+          services_start=s.index('<main id="services" class="page">')
+          services_end=s.index('</main>', services_start)
+          before=s[:services_start]
+          services=s[services_start:services_end]
+          after=s[services_end:]
+          cards=services.split('<div class="editorial-card')
+          route_by_num={'02':'/services/vaccinations/','05':'/services/dental-cleaning/','07':'/services/diagnostic-imaging/','08':'/services/pet-travel-certificate/'}
+          for i in range(1,len(cards)):
+              card=cards[i]
+              for num,route in route_by_num.items():
+                  if f'<span class="num-editorial">{num}</span>' in card and 'View Details' not in card:
+                      old='<a href="#" onclick="navTo(\'book\')" style="font-weight: 800; font-size: 1.1rem;"><span class="en-only">Book This Service &rarr;</span><span class="ar-only">احجز هذه الخدمة &larr;</span></a>'
+                      new=f'<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center"><a href="{route}" style="font-weight:800;font-size:1.05rem"><span class="en-only">View Details &rarr;</span><span class="ar-only">عرض التفاصيل &larr;</span></a><a href="#" onclick="navTo(\'book\')" style="font-weight:800;font-size:1.05rem;color:var(--gray)"><span class="en-only">Book This Service</span><span class="ar-only">احجز هذه الخدمة</span></a></div>'
+                      if old not in card: raise SystemExit(f'booking link missing in service {num}')
+                      card=card.replace(old,new,1)
+              cards[i]=card
+          services='<div class="editorial-card'.join(cards)
+          # Add a consultation/contact CTA at bottom of Services.
+          services_cta='''\n        <section class="container" style="padding-bottom:4rem">\n            <div class="editorial-panel text-center reveal" style="margin-top:0">\n                <h2 class="title-lg"><span class="en-only">Not sure which service your pet needs?</span><span class="ar-only">مش متأكد أي خدمة يحتاجها حيوانك الأليف؟</span></h2>\n                <p class="subtitle-lg" style="max-width:720px;margin:0 auto 1.5rem"><span class="en-only">Contact our team and we’ll help you choose the appropriate next step before booking.</span><span class="ar-only">تواصل مع فريقنا وسنساعدك في تحديد الخطوة المناسبة قبل الحجز.</span></p>\n                <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap"><a href="#" onclick="navTo('contact')" class="btn btn-outline"><span class="en-only">Contact Us</span><span class="ar-only">تواصل معنا</span></a><a href="#" onclick="navTo('book')" class="btn btn-primary"><span class="en-only">Book a Visit</span><span class="ar-only">احجز زيارة</span></a></div>\n            </div>\n        </section>\n'''
+          if 'Not sure which service your pet needs?' not in services:
+              services += services_cta
+          s=before+services+after
+
+          # About: use Service Area wording instead of a fixed-location implication.
+          s=s.replace('<span class="en-only">Our Location</span>\n                <span class="ar-only">موقعنا</span>', '<span class="en-only">Our Riyadh Service Area</span>\n                <span class="ar-only">نطاق خدمتنا في الرياض</span>', 1)
+
+          # Fix malformed English doctor specialty span.
+          s=s.replace('<span class="en-only"Clinical medicine and Surgery \n<br>Experience: 6 Years</span>', '<span class="en-only">Clinical Medicine and Surgery<br>Experience: 6 Years</span>', 1)
+
+          # About: add CTA before closing main.
+          about_start=s.index('<main id="about" class="page">')
+          about_end=s.index('</main>', about_start)
+          about=s[about_start:about_end]
+          about_cta='''\n        <section class="container" style="padding-bottom:4rem">\n            <div class="editorial-panel reveal" style="background:var(--black);color:var(--white);text-align:center">\n                <h2 class="title-xl" style="color:var(--white)"><span class="en-only">Veterinary care, brought closer to home.</span><span class="ar-only">رعاية بيطرية أقرب إلى بيتك.</span></h2>\n                <p class="subtitle-lg" style="color:rgba(255,255,255,.8);max-width:760px;margin:0 auto 1.5rem"><span class="en-only">Book a VETS VAN visit in Riyadh or contact our team if you need help choosing the right service.</span><span class="ar-only">احجز زيارة VETS VAN في الرياض، أو تواصل مع فريقنا إذا كنت تحتاج مساعدة في اختيار الخدمة المناسبة.</span></p>\n                <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap"><a href="#" onclick="navTo('book')" class="btn btn-primary"><span class="en-only">Book Now</span><span class="ar-only">احجز الآن</span></a><a href="#" onclick="navTo('contact')" class="btn btn-solar"><span class="en-only">Contact Us</span><span class="ar-only">تواصل معنا</span></a></div>\n            </div>\n        </section>\n'''
+          if 'Veterinary care, brought closer to home.' not in about:
+              s=s[:about_end]+about_cta+s[about_end:]
+
+          # Contact: make core details actionable and add booking CTA.
+          s=s.replace('<p class="title-lg" style="margin: 0; direction: ltr; text-align: left;">+966920011626</p>', '<a href="tel:+966920011626" class="title-lg" style="margin:0;direction:ltr;text-align:left;display:inline-block;color:var(--black)">+966920011626</a>', 1)
+          s=s.replace('<p class="title-lg" style="margin: 0;">Info@vetsvan.com</p>', '<a href="mailto:Info@vetsvan.com" class="title-lg" style="margin:0;display:inline-block;color:var(--black)">Info@vetsvan.com</a>', 1)
+          location_block='''                            <p class="title-md" style="margin: 0;">\n                                <span class="en-only">Riyadh,<br>Saudi Arabia</span>\n                                <span class="ar-only">الرياض،<br>المملكة العربية السعودية</span>\n                            </p>'''
+          if location_block in s and 'Contact page booking CTA' not in s:
+              s=s.replace(location_block, location_block+'''\n                            <!-- Contact page booking CTA -->\n                            <div style="margin-top:2rem"><a href="#" onclick="navTo('book')" class="btn btn-primary"><span class="en-only">Book a Home Visit</span><span class="ar-only">احجز زيارة منزلية</span></a></div>''',1)
+
+          p.write_text(s)
+          PY
+      - name: Verify changes
+        run: |
+          grep -q '/services/vaccinations/' index.html
+          grep -q '/services/dental-cleaning/' index.html
+          grep -q '/services/diagnostic-imaging/' index.html
+          grep -q '/services/pet-travel-certificate/' index.html
+          grep -q 'Our Riyadh Service Area' index.html
+          grep -q 'Clinical Medicine and Surgery' index.html
+          grep -q 'tel:+966920011626' index.html
+          grep -q 'mailto:Info@vetsvan.com' index.html
+      - name: Commit changes and remove workflow
+        run: |
+          rm .github/workflows/internal-pages-polish.yml
+          git config user.name "Mohamed-Omaar"
+          git config user.email "mohamed.mostafa.omaar@gmail.com"
+          git add index.html .github/workflows/internal-pages-polish.yml
+          git commit -m "Polish Services About and Contact pages"
+          git push
