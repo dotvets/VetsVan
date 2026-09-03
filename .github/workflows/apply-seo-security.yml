@@ -1,0 +1,61 @@
+name: Apply SEO and security hardening
+on:
+  push:
+    branches: [chatgpt/site-hardening-seo]
+    paths: [.github/workflows/apply-seo-security.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/site-hardening-seo
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Patch site and server
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+
+          seo='''\n    <meta name="description" content="VETS VAN provides premium mobile veterinary care and home vet visits across Riyadh, including wellness exams, vaccinations, diagnostics, dental care and travel certificates.">\n    <meta name="robots" content="index, follow, max-image-preview:large">\n    <link rel="canonical" href="https://www.vetsvan.com/">\n    <meta property="og:type" content="website">\n    <meta property="og:site_name" content="VETS VAN">\n    <meta property="og:title" content="Mobile Veterinary Clinic in Riyadh | VETS VAN">\n    <meta property="og:description" content="Premium mobile veterinary care and home vet visits across Riyadh, delivered by VETS VAN.">\n    <meta property="og:url" content="https://www.vetsvan.com/">\n    <meta property="og:image" content="https://www.vetsvan.com/clinic-van.png">\n    <meta name="twitter:card" content="summary_large_image">\n    <meta name="twitter:title" content="Mobile Veterinary Clinic in Riyadh | VETS VAN">\n    <meta name="twitter:description" content="Premium mobile veterinary care and home vet visits across Riyadh.">\n    <meta name="twitter:image" content="https://www.vetsvan.com/clinic-van.png">\n    <script type="application/ld+json">\n    {\n      "@context":"https://schema.org",\n      "@type":"VeterinaryCare",\n      "name":"VETS VAN",\n      "url":"https://www.vetsvan.com/",\n      "logo":"https://www.vetsvan.com/Vets_van_logo_png.png",\n      "image":"https://www.vetsvan.com/clinic-van.png",\n      "telephone":"+966920011626",\n      "email":"Info@vetsvan.com",\n      "address":{"@type":"PostalAddress","addressLocality":"Riyadh","addressCountry":"SA"},\n      "areaServed":{"@type":"City","name":"Riyadh"},\n      "sameAs":["https://www.instagram.com/vets_van/","https://www.tiktok.com/@vetsvan"],\n      "availableService":[\n        {"@type":"VeterinaryCare","name":"Wellness Exams"},\n        {"@type":"VeterinaryCare","name":"Vaccinations"},\n        {"@type":"VeterinaryCare","name":"Diagnostic Lab Tests"},\n        {"@type":"VeterinaryCare","name":"Dental Care"},\n        {"@type":"VeterinaryCare","name":"Diagnostic Imaging"},\n        {"@type":"VeterinaryCare","name":"Health & Travel Certificates"}\n      ]\n    }\n    </script>'''
+          if 'meta name="description"' not in s:
+              s=s.replace('    <title>VETS VAN | Premium Mobile Veterinary Care</title>', '    <title>Mobile Veterinary Clinic in Riyadh | VETS VAN</title>'+seo)
+
+          extra='''\n        <!-- SERVICE AREA -->\n        <section class="section container reveal" aria-labelledby="service-area-title">\n            <div class="editorial-panel">\n                <div class="grid-asym">\n                    <div>\n                        <span class="num-editorial">RIYADH</span>\n                        <h2 id="service-area-title" class="title-xl">\n                            <span class="en-only">Mobile Veterinary Care Across Riyadh.</span>\n                            <span class="ar-only">رعاية بيطرية متنقلة في أنحاء الرياض.</span>\n                        </h2>\n                        <p class="subtitle-lg" style="margin-bottom:1rem">\n                            <span class="en-only">VETS VAN brings professional veterinary care directly to homes across Riyadh. Appointment availability may vary by neighborhood, schedule, and the service your pet needs.</span>\n                            <span class="ar-only">تصل VETS VAN بالرعاية البيطرية الاحترافية إلى المنازل في أنحاء الرياض. قد يختلف توفر المواعيد حسب الحي والجدول والخدمة التي يحتاجها حيوانك الأليف.</span>\n                        </p>\n                        <p>\n                            <span class="en-only">When hospitalization, advanced surgery, or specialized facility care is required, our partner network provides a clear pathway to the appropriate veterinary facility.</span>\n                            <span class="ar-only">وعند الحاجة إلى تنويم أو جراحة متقدمة أو رعاية داخل منشأة متخصصة، تساعد شبكة شركائنا في توجيه الحالة إلى المنشأة البيطرية المناسبة.</span>\n                        </p>\n                    </div>\n                    <div class="map-container" style="overflow:hidden;height:320px;margin-top:0">\n                        <iframe loading="lazy" title="VETS VAN Riyadh service area" width="100%" height="100%" frameborder="0" src="https://maps.google.com/maps?q=Riyadh%20Saudi%20Arabia&z=10&output=embed" style="border-radius:var(--radius-lg)"></iframe>\n                    </div>\n                </div>\n            </div>\n        </section>\n\n        <!-- FAQ -->\n        <section class="section container reveal" aria-labelledby="faq-title">\n            <h2 id="faq-title" class="title-xl text-center" style="margin-bottom:2.5rem">\n                <span class="en-only">Frequently Asked Questions</span>\n                <span class="ar-only">الأسئلة الشائعة</span>\n            </h2>\n            <div class="grid-2">\n                <div class="editorial-card"><h3 class="title-sm"><span class="en-only">Which areas do you cover?</span><span class="ar-only">ما المناطق التي تغطيها VETS VAN؟</span></h3><p><span class="en-only">We provide mobile veterinary visits across Riyadh. Exact appointment availability depends on your neighborhood and schedule.</span><span class="ar-only">نقدم زيارات بيطرية متنقلة في أنحاء الرياض، ويعتمد توفر الموعد على الحي والجدول.</span></p></div>\n                <div class="editorial-card"><h3 class="title-sm"><span class="en-only">What pets do you treat?</span><span class="ar-only">ما الحيوانات التي تستقبلونها؟</span></h3><p><span class="en-only">Our current booking flow is designed for cats and dogs. Contact us for any case that needs clarification before booking.</span><span class="ar-only">نظام الحجز الحالي مخصص للقطط والكلاب. تواصل معنا إذا كانت الحالة تحتاج توضيحًا قبل الحجز.</span></p></div>\n                <div class="editorial-card"><h3 class="title-sm"><span class="en-only">Can you perform diagnostics during the visit?</span><span class="ar-only">هل يمكن إجراء فحوصات وتشخيص أثناء الزيارة؟</span></h3><p><span class="en-only">Available services include laboratory diagnostics and diagnostic imaging, depending on the pet's condition and appointment type.</span><span class="ar-only">تشمل الخدمات المتاحة الفحوصات المعملية والتصوير التشخيصي حسب حالة الحيوان ونوع الموعد.</span></p></div>\n                <div class="editorial-card"><h3 class="title-sm"><span class="en-only">Do you provide travel certificates?</span><span class="ar-only">هل توفرون شهادات السفر؟</span></h3><p><span class="en-only">Yes. Health and travel certificate services are available; requirements can differ by destination and travel date.</span><span class="ar-only">نعم، تتوفر خدمات الشهادات الصحية والسفر، وقد تختلف المتطلبات حسب الوجهة وتاريخ السفر.</span></p></div>\n                <div class="editorial-card"><h3 class="title-sm"><span class="en-only">What if my pet needs surgery or hospitalization?</span><span class="ar-only">ماذا لو احتاج الحيوان إلى جراحة أو تنويم؟</span></h3><p><span class="en-only">Cases needing advanced facility-based care can be referred through our veterinary partner network.</span><span class="ar-only">يمكن توجيه الحالات التي تحتاج رعاية متقدمة داخل منشأة إلى شبكة شركائنا البيطريين.</span></p></div>\n                <div class="editorial-card"><h3 class="title-sm"><span class="en-only">Is VETS VAN an emergency hospital?</span><span class="ar-only">هل VETS VAN مستشفى طوارئ؟</span></h3><p><span class="en-only">VETS VAN is a mobile veterinary service. Urgent cases that require continuous monitoring or hospital-level intervention may need referral to a veterinary hospital.</span><span class="ar-only">VETS VAN خدمة بيطرية متنقلة. الحالات العاجلة التي تحتاج مراقبة مستمرة أو تدخلًا على مستوى المستشفى قد تحتاج إلى تحويل لمستشفى بيطري.</span></p></div>\n            </div>\n        </section>\n'''
+          marker='    </main>\n\n    <!-- PAGE 2: BOOK NOW -->'
+          if '<!-- SERVICE AREA -->' not in s:
+              s=s.replace(marker, extra+'\n    </main>\n\n    <!-- PAGE 2: BOOK NOW -->',1)
+
+          # Native lazy-loading for non-critical media.
+          for src in ['Layer_35.jpg','Image_3.jpeg','retouc_the_lady_skin_and_202606111029.jpeg?auto=format&fit=crop&q=80&w=1200','InsideVan.jpg','doc_img.jpeg']:
+              s=s.replace(f'<img src="{src}"', f'<img loading="lazy" decoding="async" src="{src}"')
+          s=s.replace('<iframe width="100%" height="100%" frameborder="0"', '<iframe loading="lazy" width="100%" height="100%" frameborder="0"')
+          p.write_text(s)
+
+          p=Path('server/index.js')
+          s=p.read_text()
+          if "from 'node:crypto'" not in s:
+              s=s.replace("import fs from 'node:fs/promises';", "import fs from 'node:fs/promises';\nimport crypto from 'node:crypto';")
+          s=s.replace("const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-render';", "const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(48).toString('hex');\nif (!process.env.JWT_SECRET) console.warn('JWT_SECRET is not configured; using an ephemeral secret for this process.');")
+          middleware="""\n// Baseline security headers without a restrictive CSP that could break third-party booking/maps assets.\napp.use((req,res,next)=>{\n  res.setHeader('X-Content-Type-Options','nosniff');\n  res.setHeader('X-Frame-Options','SAMEORIGIN');\n  res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');\n  res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=(self)');\n  next();\n});\n\nconst rateBuckets = new Map();\nfunction rateLimit({ windowMs, max }) {\n  return (req,res,next)=>{\n    const now=Date.now();\n    const ip=(req.headers['x-forwarded-for']||req.socket.remoteAddress||'unknown').toString().split(',')[0].trim();\n    const key=req.path+'|'+ip;\n    let b=rateBuckets.get(key);\n    if(!b||now-b.start>=windowMs){ b={start:now,count:0}; rateBuckets.set(key,b); }\n    b.count++;\n    if(b.count>max){ res.setHeader('Retry-After',String(Math.ceil((windowMs-(now-b.start))/1000))); return res.status(429).json({error:'Too many requests. Please try again later.'}); }\n    next();\n  };\n}\nconst loginRateLimit=rateLimit({windowMs:15*60*1000,max:10});\nconst publicWriteRateLimit=rateLimit({windowMs:60*60*1000,max:30});\nsetInterval(()=>{ const now=Date.now(); for(const [k,b] of rateBuckets) if(now-b.start>2*60*60*1000) rateBuckets.delete(k); },30*60*1000).unref();\n"""
+          if 'const rateBuckets = new Map();' not in s:
+              s=s.replace("app.use(express.urlencoded({ extended: true }));", "app.use(express.urlencoded({ extended: true }));"+middleware)
+          s=s.replace("app.post('/api/auth/login',async(req,res)=>", "app.post('/api/auth/login',loginRateLimit,async(req,res)=>")
+          s=s.replace("app.post('/api/reviews',async(req,res)=>", "app.post('/api/reviews',publicWriteRateLimit,async(req,res)=>")
+          s=s.replace("app.post('/api/bookings',async(req,res)=>", "app.post('/api/bookings',publicWriteRateLimit,async(req,res)=>")
+          s=s.replace("app.post('/api/messages',async(req,res)=>", "app.post('/api/messages',publicWriteRateLimit,async(req,res)=>")
+          p.write_text(s)
+          PY
+          node --check server/index.js
+          git config user.name "Mohamed-Omaar"
+          git config user.email "mohamed.mostafa.omaar@gmail.com"
+          git add index.html server/index.js
+          git commit -m "Improve SEO performance and server security"
+          git rm .github/workflows/apply-seo-security.yml
+          git commit -m "Remove one-shot SEO workflow"
+          git push origin chatgpt/site-hardening-seo
