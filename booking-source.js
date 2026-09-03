@@ -64,12 +64,32 @@
     }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', applyBookingSource, { once: true });
-  } else {
-    applyBookingSource();
+  function applyDeepLink() {
+    const id = location.hash.replace(/^#/, '');
+    if (!['home', 'book', 'services', 'about', 'contact'].includes(id)) return;
+    if (typeof window.navTo === 'function') {
+      try { window.navTo(id); } catch {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(id)?.classList.add('active');
+        window.scrollTo(0, 0);
+      }
+    }
   }
 
-  window.addEventListener('hashchange', applyBookingSource);
+  function init() {
+    applyBookingSource();
+    applyDeepLink();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else {
+    init();
+  }
+
+  window.addEventListener('hashchange', () => {
+    applyBookingSource();
+    applyDeepLink();
+  });
   window.VetsVanBookingSource = { refresh: applyBookingSource };
 })();
