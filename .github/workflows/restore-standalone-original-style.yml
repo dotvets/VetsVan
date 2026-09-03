@@ -1,0 +1,32 @@
+name: Restore standalone original style
+on:
+  push:
+    paths:
+      - '.github/workflows/restore-standalone-original-style.yml'
+permissions:
+  contents: write
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore pages from original sections
+        run: python scripts/restore_standalone_styles.py
+      - name: Verify exact legacy structure is present
+        run: |
+          grep -q 'Comprehensive Care.' services/index.html
+          grep -q 'We,<br><span style="color: var(--purple);">VETS VAN.' about/index.html
+          grep -q 'Get In Touch.' contact/index.html
+          grep -q 'hero-editorial-panel' services/index.html
+          grep -q 'editorial-panel' about/index.html
+          grep -q 'grid-asym' contact/index.html
+          grep -q 'href="/#book"' services/index.html
+      - name: Commit restored pages and cleanup
+        run: |
+          rm scripts/restore_standalone_styles.py
+          rm .github/workflows/restore-standalone-original-style.yml
+          git config user.name "Mohamed-Omaar"
+          git config user.email "mohamed.mostafa.omaar@gmail.com"
+          git add -A
+          git commit -m "Restore original styling on standalone pages"
+          git push
