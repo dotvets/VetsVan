@@ -65,10 +65,13 @@
   }
 
   function applyDeepLink() {
-    const id = location.hash.replace(/^#/, '');
+    const cleanPath = location.pathname.replace(/\/+$/, '') || '/';
+    const pathPage = cleanPath === '/book' ? 'book' : '';
+    const hashPage = location.hash.replace(/^#/, '');
+    const id = pathPage || hashPage;
     if (!['home', 'book', 'services', 'about', 'contact'].includes(id)) return;
     if (typeof window.navTo === 'function') {
-      try { window.navTo(id); } catch {
+      try { window.navTo(id, false); } catch {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         document.getElementById(id)?.classList.add('active');
         window.scrollTo(0, 0);
