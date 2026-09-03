@@ -1,18 +1,618 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Contact VETS VAN | Mobile Vet Riyadh</title>
-  <meta name="description" content="Contact VETS VAN in Riyadh by phone or email for mobile veterinary care, booking support, service questions, and pet travel enquiries.">
-  <meta name="robots" content="index, follow, max-image-preview:large"><link rel="canonical" href="https://www.vetsvan.com/contact/">
-  <meta property="og:type" content="website"><meta property="og:site_name" content="VETS VAN"><meta property="og:title" content="Contact VETS VAN | Mobile Vet Riyadh"><meta property="og:description" content="Contact VETS VAN for mobile veterinary care and booking support in Riyadh."><meta property="og:url" content="https://www.vetsvan.com/contact/"><meta property="og:image" content="https://www.vetsvan.com/clinic-van.png">
-  <link rel="icon" type="image/png" href="/Icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"><link rel="stylesheet" href="/services/service-page.css">
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"ContactPage","name":"Contact VETS VAN","url":"https://www.vetsvan.com/contact/","mainEntity":{"@type":"VeterinaryCare","name":"VETS VAN","telephone":"+966920011626","email":"Info@vetsvan.com","address":{"@type":"PostalAddress","addressLocality":"Riyadh","addressCountry":"SA"}}}</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contact VETS VAN | Mobile Vet Riyadh</title>
+<meta name="description" content="Contact VETS VAN in Riyadh for mobile veterinary care, booking assistance and pet care enquiries.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://www.vetsvan.com/contact/">
+<link rel="icon" type="image/png" href="/Icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+        /* CSS VARIABLES & EDITORIAL DESIGN SYSTEM */
+        :root {
+            --white: #FFFFFF;
+            --purple: #A32890;
+            --black: #000000;
+            --gray: #58595C;
+            --bg-offwhite: #F4F4F6;
+            
+            --radius-xl: 3rem;
+            --radius-lg: 2rem;
+            --radius-md: 1rem;
+            
+            --transition-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            background-color: var(--bg-offwhite); 
+            color: var(--gray); 
+            line-height: 1.6; 
+            transition: opacity 0.4s var(--transition-smooth);
+            overflow-x: hidden;
+        }
+        
+        html[lang="en"] body { font-family: 'Inter', sans-serif; text-align: left; }
+        html[lang="ar"] body,
+        html[lang="ar"] h1,
+        html[lang="ar"] h2,
+        html[lang="ar"] h3,
+        html[lang="ar"] h4,
+        html[lang="ar"] h5,
+        html[lang="ar"] h6,
+        html[lang="ar"] button,
+        html[lang="ar"] input,
+        html[lang="ar"] textarea,
+        html[lang="ar"] select,
+        html[lang="ar"] .btn,
+        html[lang="ar"] .nav-links,
+        html[lang="ar"] .lang-switcher {
+            font-family: 'Cairo', sans-serif;
+        }
+        html[lang="ar"] body { text-align: right; }
+        
+        /* OVERSIZED EDITORIAL TYPOGRAPHY */
+        h1, h2, h3, h4, h5, h6 { color: var(--black); font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
+        
+        .title-huge { font-size: clamp(3rem, 6vw, 5.5rem); font-weight: 900; margin-bottom: 1.5rem; letter-spacing: -0.03em; }
+        .title-xl { font-size: clamp(2.5rem, 5vw, 4rem); margin-bottom: 1.5rem; }
+        .title-lg { font-size: clamp(2rem, 4vw, 3rem); margin-bottom: 1rem; }
+        .title-md { font-size: clamp(1.5rem, 3vw, 2rem); margin-bottom: 1rem; }
+        .title-sm { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+        
+        .subtitle-lg { font-size: clamp(1.125rem, 2vw, 1.5rem); color: var(--gray); margin-bottom: 2.5rem; line-height: 1.5; font-weight: 500; }
+        
+        /* LARGE EDITORIAL NUMBERS */
+        .num-huge { font-size: clamp(4rem, 8vw, 8rem); font-weight: 900; color: var(--purple); line-height: 1; letter-spacing: -0.05em; opacity: 0.15; position: absolute; top: -10px; left: -10px; z-index: 0; pointer-events: none; }
+        html[lang="ar"] .num-huge { left: auto; right: -10px; }
+        
+        .num-editorial { font-size: 3rem; font-weight: 900; color: var(--purple); margin-bottom: 1rem; line-height: 1; }
+
+        a { text-decoration: none; color: var(--purple); transition: color 0.3s ease; }
+        img { max-width: 100%; height: auto; display: block; }
+        ul { list-style: none; }
+
+        /* LANGUAGE TOGGLE LOGIC */
+        html[lang="en"] .ar-only { display: none !important; }
+        html[lang="ar"] .en-only { display: none !important; }
+
+        /* CONTAINERS & STANDARDIZED SPACING */
+        .container { max-width: 1400px; margin: 0 auto; padding: 0 2rem; }
+        .section { padding: 4rem 0; }
+        
+        .editorial-panel {
+            background-color: var(--white);
+            border-radius: var(--radius-xl);
+            padding: clamp(2.5rem, 5vw, 4.5rem);
+            margin: 2rem 0;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.03);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* HERO REDESIGN SYSTEM */
+        .hero-editorial-panel {
+            background-color: var(--white);
+            border-radius: var(--radius-xl);
+            padding: clamp(2.5rem, 5vw, 4.5rem);
+            padding-bottom: clamp(2.5rem, 5vw, 4rem);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.03);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 1;
+            margin-top: 2rem;
+            margin-bottom: 4rem;
+        }
+        
+        .hero-text-content {
+            flex: 1;
+            max-width: 50%;
+            position: relative;
+            z-index: 3;
+        }
+        
+        .hero-van-wrapper {
+            position: relative;
+            width: 50%;
+            z-index: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        html[lang="ar"] .hero-van-wrapper {
+            right: auto;
+            left: auto;
+        }
+        
+        .hero-van {
+            width: 100%;
+            height: auto;
+            display: block;
+            opacity: 0;
+            animation: heroVanEntrance 1.2s var(--transition-smooth) 0.2s forwards, heroVanFloat 6s ease-in-out 1.4s infinite alternate;
+        }
+        
+        @keyframes heroVanEntrance {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes heroVanFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* ASYMMETRICAL GRIDS */
+        .grid-asym { display: grid; grid-template-columns: 5fr 4fr; gap: 4vw; align-items: center; }
+        .grid-asym-rev { display: grid; grid-template-columns: 4fr 5fr; gap: 4vw; align-items: center; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 3vw; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.5vw; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; }
+
+        /* BUTTONS (PREMIUM PILL SHAPE) */
+        .btn { 
+            display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+            padding: 16px 32px; font-weight: 700; border-radius: 100px; cursor: pointer; text-align: center; 
+            border: 2px solid transparent; position: relative; overflow: hidden;
+            transition: all 0.4s var(--transition-smooth); font-size: 1.1rem;
+        }
+        html[lang="ar"] .btn { font-family: 'Cairo', sans-serif; }
+        
+        .btn-primary { background-color: var(--purple); color: var(--white); }
+        .btn-primary:hover { background-color: var(--black); color: var(--white); transform: translateY(-4px); box-shadow: 0 15px 30px rgba(163, 40, 144, 0.2); }
+        
+        .btn-outline { background-color: transparent; color: var(--black); border-color: var(--black); }
+        .btn-outline:hover { background-color: var(--black); color: var(--white); transform: translateY(-4px); box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15); }
+        
+        .btn-outline-purple {
+            background-color: transparent;
+            color: var(--purple);
+            border-color: var(--purple);
+        }
+        .btn-outline-purple:hover {
+            background-color: var(--purple);
+            color: var(--white);
+            transform: translateY(-4px);
+            box-shadow: 0 15px 30px rgba(163, 40, 144, 0.2);
+        }
+
+        .btn-solar { background-color: var(--purple); color: var(--white); border: 2px solid rgba(255,255,255,0.5); }
+        .btn-solar:hover { background-color: var(--white); color: var(--purple); transform: translateY(-4px); border-color: var(--white); box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
+        .btn-block { display: flex; width: 100%; }
+
+        /* FORM ACTIONS SPACING */
+        .form-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 2.5rem; }
+
+        /* HEADER & NAVIGATION */
+        header { position: sticky; top: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(0,0,0,0.05); z-index: 1000; padding: 1.25rem 0; transition: all 0.4s ease; }
+        .nav-container { display: flex; justify-content: space-between; align-items: center; }
+        .logo { display: flex; align-items: center; transition: transform 0.4s var(--transition-smooth); }
+        .logo:hover { transform: scale(1.05); }
+        
+        .nav-links { display: flex; gap: 2.5rem; align-items: center; }
+        .nav-links > a { color: var(--black); font-weight: 600; font-size: 1rem; position: relative; padding-bottom: 4px; }
+        html[lang="ar"] .nav-links > a { font-weight: 700; font-size: 1.1rem; }
+        
+        .nav-links > a::after {
+            content: ''; position: absolute; bottom: -2px; left: 0; width: 100%; height: 3px; border-radius: 3px;
+            background-color: var(--purple); transform: scaleX(0); transition: transform 0.4s var(--transition-smooth);
+        }
+        html[lang="en"] .nav-links > a::after { transform-origin: left; }
+        html[lang="ar"] .nav-links > a::after { transform-origin: right; }
+        .nav-links > a.active-link::after, .nav-links > a:hover::after { transform: scaleX(1); }
+        .nav-links > a.active-link { color: var(--purple); }
+        .nav-links .btn::after { display: none; } 
+        .nav-links > a.btn-primary {
+            color: var(--white);
+        }
+        .menu-toggle { display: none; font-size: 1.75rem; color: var(--black); cursor: pointer; }
+
+        /* LANGUAGE SWITCHER */
+        .lang-switcher {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            font-weight: 700;
+            border: 1.5px solid #D0D0D0;
+            padding: 6px 11px;
+            border-radius: 100px;
+            background: #F2F2F2;
+            white-space: nowrap;
+        }
+        .lang-switcher:hover { border-color: #D0D0D0; }
+        .lang-icon {
+            color: #9A9A9A;
+            font-size: 0.9rem;
+            line-height: 1;
+        }
+        .lang-switcher a {
+            color: #9A9A9A;
+            font-size: 0.78rem;
+            font-weight: 800;
+            line-height: 1;
+            transition: color 0.25s ease;
+        }
+        .lang-switcher a.active { color: var(--purple); }
+        .lang-switcher a:hover { color: var(--purple); }
+        .lang-separator { color: #9A9A9A; font-size: 0.72rem; }
+
+        .hero-kicker { display:inline-flex; align-items:center; gap:.5rem; margin-bottom:1rem; color:var(--purple); font-size:.9rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+        html[lang="ar"] .hero-kicker { letter-spacing:0; text-transform:none; }
+
+        .service-learn-link { display:inline-flex; align-items:center; gap:.55rem; margin-top:1.25rem; color:var(--purple); font-weight:800; font-size:.95rem; }
+        .service-learn-link:hover { gap:.8rem; }
+
+        /* PAGE TRANSITIONS */
+        .page { display: none; }
+        .page.active { display: block; animation: pageCinematic 0.6s var(--transition-smooth) forwards; }
+        @keyframes pageCinematic { from { opacity: 0; transform: translateY(20px) scale(0.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+        /* EDITORIAL CARDS & IMAGES */
+        .editorial-card { background: var(--bg-offwhite); border-radius: var(--radius-lg); padding: 2.5rem; transition: all 0.5s var(--transition-smooth); position: relative; overflow: hidden; border: 1px solid transparent; }
+        .editorial-card:hover { transform: translateY(-8px); background: var(--white); border-color: rgba(163, 40, 144, 0.1); box-shadow: 0 30px 60px rgba(0,0,0,0.05); }
+        .editorial-card:hover .num-huge { color: var(--purple); opacity: 0.25; transform: scale(1.1); transition: all 0.5s var(--transition-smooth); }
+        
+        .img-editorial-wrap { border-radius: var(--radius-lg); overflow: hidden; position: relative; aspect-ratio: 4/5; box-shadow: 0 30px 60px rgba(0,0,0,0.08); }
+        .img-editorial { width: 100%; height: 100%; object-fit: cover; object-position: center; transition: transform 0.8s var(--transition-smooth); }
+        .img-editorial-wrap:hover .img-editorial { transform: scale(1.04); }
+
+        .img-landscape { aspect-ratio: 16/9; }
+        .img-overlap { margin-top: -10%; position: relative; z-index: 2; }
+
+        /* BOOKING FORM ENHANCEMENTS */
+        .booking-wrapper { max-width: 900px; margin: 0 auto; }
+        .step-indicator { display: flex; justify-content: space-between; margin-bottom: 3rem; position: relative; z-index: 1; }
+        .step-indicator::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 3px; background: var(--bg-offwhite); z-index: -1; transform: translateY(-50%); border-radius: 3px; }
+        
+        .progress-bar-fill { position: absolute; top: 50%; left: 0; height: 3px; background: var(--purple); z-index: -1; transform: translateY(-50%); transition: width 0.6s var(--transition-smooth); width: 0%; border-radius: 3px; }
+        html[lang="ar"] .progress-bar-fill { left: auto; right: 0; }
+
+        .step { width: 45px; height: 45px; font-size: 1.2rem; background: var(--white); border: 3px solid var(--bg-offwhite); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--gray); font-weight: 800; transition: all 0.4s var(--transition-smooth); z-index: 2; }
+        .step.active { border-color: var(--purple); color: var(--purple); transform: scale(1.15); box-shadow: 0 0 0 6px rgba(163,40,144,0.1); }
+        .step.completed { background: var(--purple); border-color: var(--purple); color: var(--white); }
+        
+        .form-step { display: none; }
+        .form-step.active { display: block; animation: pageCinematic 0.5s var(--transition-smooth) forwards; }
+
+        .form-group { margin-bottom: 1.5rem; }
+        .form-label { display: block; color: var(--black); margin-bottom: 0.5rem; font-size: 1.05rem; font-weight: 700; }
+        
+        .form-control { width: 100%; padding: 16px 20px; border: 2px solid transparent; background: var(--bg-offwhite); border-radius: var(--radius-md); font-size: 1.05rem; color: var(--black); outline: none; transition: all 0.3s ease; }
+        html[lang="en"] .form-control { font-family: 'Inter', sans-serif; text-align: left; }
+        html[lang="ar"] .form-control { font-family: 'Cairo', sans-serif; text-align: right; }
+        .form-control:focus { border-color: var(--purple); background: var(--white); box-shadow: 0 10px 25px rgba(163,40,144,0.08); }
+        
+        .selectable-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+        .select-card { border: 2px solid transparent; background: var(--bg-offwhite); padding: 1.5rem; border-radius: var(--radius-md); text-align: center; cursor: pointer; color: var(--black); font-weight: 700; font-size: 1.05rem; transition: all 0.3s var(--transition-smooth); display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .select-card:hover { transform: translateY(-4px); box-shadow: 0 12px 25px rgba(0,0,0,0.05); border-color: rgba(163, 40, 144, 0.2); }
+        
+        /* الزر المحدد بلون بنفسجي وكتابة وأيقونة بيضاء */
+        .select-card.selected { border-color: var(--purple); background: var(--purple); color: var(--white); transform: scale(1.02); box-shadow: 0 15px 35px rgba(163, 40, 144, 0.25); }
+        
+        .summary-box { background: var(--bg-offwhite); padding: 2.5rem; border-radius: var(--radius-lg); border-left: 6px solid var(--purple); transition: transform 0.4s ease; }
+        html[lang="ar"] .summary-box { border-left: none; border-right: 6px solid var(--purple); }
+        .summary-box:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.04); }
+        .summary-item { display: flex; justify-content: space-between; margin-bottom: 1.2rem; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 0.6rem; font-size: 1.05rem; }
+        .summary-item span:first-child { color: var(--gray); font-weight: 600; }
+        .summary-item span:last-child { color: var(--black); font-weight: 800; }
+
+        /* SCROLL REVEAL ANIMATIONS */
+        .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.8s var(--transition-smooth), transform 0.8s var(--transition-smooth); }
+        .reveal.in-view { opacity: 1; transform: translateY(0); }
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.3s; }
+
+        /* CINEMATIC IMAGE REVEAL */
+        .img-reveal-wrap { overflow: hidden; border-radius: var(--radius-lg); }
+        .img-reveal { opacity: 0; transform: scale(1.1); transition: opacity 1s var(--transition-smooth), transform 1.2s var(--transition-smooth); }
+        .img-reveal.in-view { opacity: 1; transform: scale(1); }
+
+        /* STAGGERED HERO ANIMATIONS */
+        .page.active .hero-stagger-1 { animation: fadeUp 0.8s var(--transition-smooth) forwards; opacity: 0; }
+        .page.active .hero-stagger-2 { animation: fadeUp 0.8s var(--transition-smooth) 0.15s forwards; opacity: 0; }
+        .page.active .hero-stagger-3 { animation: fadeUp 0.8s var(--transition-smooth) 0.3s forwards; opacity: 0; }
+
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(25px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* SUBTLE FLOAT */
+        .float-anim { animation: subtleFloat 8s ease-in-out infinite; }
+        @keyframes subtleFloat { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+
+        /* MAP */
+        .map-container { height: 400px; background-color: var(--bg-offwhite); border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; color: var(--gray); margin-top: 1.5rem; transition: transform 0.5s var(--transition-smooth); font-size: 1.2rem; font-weight: 700; border: 2px dashed rgba(0,0,0,0.1); }
+
+        /* FOOTER & SMOOTH MENU TRANSITION */
+        footer { background: var(--black); color: var(--white); padding: 4rem 0 2rem 0; margin-top: 4rem; border-top-left-radius: var(--radius-xl); border-top-right-radius: var(--radius-xl); }
+        footer h4 { color: var(--white); margin-bottom: 1.5rem; font-size: 1.2rem; }
+        footer a { color: #A0A0A0; display: block; margin-bottom: 0.8rem; font-weight: 500; font-size: 1.05rem; transition: all 0.3s var(--transition-smooth); }
+        footer a:hover { color: var(--white); transform: translateX(8px); }
+        html[lang="ar"] footer a:hover { transform: translateX(-8px); }
+        .footer-bottom { border-top: 1px solid rgba(255,255,255,0.1); margin-top: 3rem; padding-top: 1.5rem; text-align: center; color: #888; font-size: 0.95rem; }
+        html[lang="ar"] .footer-bottom { direction: ltr; }
+        
+        .social-icons { display: flex; gap: 1.2rem; align-items: center; margin-top: 1.5rem; }
+        .social-icons a { font-size: 1.4rem; margin-bottom: 0; transition: all 0.3s ease; background: rgba(255,255,255,0.1); width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+        .social-icons a:hover { transform: translateY(-5px) scale(1.1) !important; background: var(--purple); color: var(--white); }
+        .x-social-logo {
+            width: 18px;
+            height: 18px;
+            object-fit: contain;
+            display: block;
+            filter: invert(1);
+        }
+        .social-icons a:hover .x-social-logo {
+            filter: invert(1);
+        }
+
+        /* MOBILE STICKY CTA */
+        .mobile-cta { display: none; position: fixed; bottom: 0; left: 0; right: 0; width: 100%; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 12px 20px; box-shadow: 0 -10px 30px rgba(0,0,0,0.08); z-index: 1000; border-top: 1px solid var(--border); }
+
+        /* UTILITIES */
+        .text-center { text-align: center; }
+
+        /* RESPONSIVE */
+        @media (max-width: 1024px) {
+            .grid-asym, .grid-asym-rev { grid-template-columns: 1fr; gap: 2.5rem; }
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .grid-3 { grid-template-columns: repeat(2, 1fr); }
+            .editorial-panel { padding: 2.5rem 1.5rem; }
+            .img-overlap { margin-top: 0; }
+            
+            /* Hero Panel Adjustments */
+            .hero-editorial-panel {
+                flex-direction: column;
+                padding: clamp(2rem, 4vw, 3rem);
+                padding-bottom: 0;
+            }
+            .hero-text-content {
+                max-width: 100%;
+                text-align: center;
+                padding-bottom: 1.5rem;
+            }
+            .hero-text-content .hero-stagger-3 {
+                justify-content: center;
+            }
+            .hero-van-wrapper {
+                position: relative;
+                right: auto;
+                left: auto;
+                bottom: -2rem;
+                width: 105%;
+                margin: 0 auto;
+            }
+            html[lang="ar"] .hero-van-wrapper {
+                right: auto;
+                left: auto;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links { display: none; position: absolute; top: 100%; width: 100%; background: var(--white); flex-direction: column; padding: 2rem; border-bottom: 1px solid var(--border); gap: 1.5rem; box-shadow: 0 20px 40px rgba(0,0,0,0.1); border-bottom-left-radius: 1rem; border-bottom-right-radius: 1rem; }
+            html[lang="en"] .nav-links { left: 0; right: auto; }
+            html[lang="ar"] .nav-links { right: 0; left: auto; }
+            .nav-links.show { display: flex; animation: pageCinematic 0.4s ease forwards; }
+            .menu-toggle { display: block; }
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            body { padding-bottom: 100px; }
+            .mobile-cta { display: block; }
+            header .btn-primary { display: none; }
+            .selectable-cards { grid-template-columns: 1fr; }
+            .step { width: 40px; height: 40px; font-size: 1rem; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, ::before, ::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+            .reveal, .img-reveal { opacity: 1; transform: none; clip-path: none; }
+            .page.active .hero-stagger-1, .page.active .hero-stagger-2, .page.active .hero-stagger-3 { opacity: 1; animation: none; }
+            .hero-van { opacity: 1; animation: none; }
+            .float-anim { animation: none; }
+        }
+    
+.page{display:none} .page.active{display:block}</style>
 </head>
 <body>
-<header class="wrap top"><a href="/"><img src="/Vets_van_logo_png.png" alt="VETS VAN" class="logo"></a><nav><a href="/services/">Services</a> &nbsp; <a href="/about/">About</a> &nbsp; <a href="/contact/">Contact</a> &nbsp; <a class="btn" href="/#book">Book Now</a></nav></header>
-<main class="wrap">
-<section class="hero"><div class="eyebrow">CONTACT VETS VAN · RIYADH</div><h1>Get in touch.</h1><p class="lead">Need help with a booking, service question, or your pet's visit? Contact the VETS VAN team directly.</p><div class="grid"><div class="mini"><h3>Phone</h3><p><a href="tel:+966920011626">+966920011626</a></p></div><div class="mini"><h3>Email</h3><p><a href="mailto:Info@vetsvan.com">Info@vetsvan.com</a></p></div></div><p><a class="btn" href="/#book">Book a Home Visit</a> &nbsp; <a href="/#contact">Open message form →</a></p><div class="ar"><div class="eyebrow">تواصل مع VETS VAN · الرياض</div><h2>تواصل معنا.</h2><p class="lead">تحتاج مساعدة في الحجز أو استفسار عن خدمة أو زيارة حيوانك الأليف؟ تواصل مباشرة مع فريق VETS VAN.</p><div class="grid"><div class="mini"><h3>الهاتف</h3><p style="direction:ltr;text-align:right"><a href="tel:+966920011626">+966920011626</a></p></div><div class="mini"><h3>البريد الإلكتروني</h3><p><a href="mailto:Info@vetsvan.com">Info@vetsvan.com</a></p></div></div></div></section>
-<section class="card"><h2>Serving pet owners across Riyadh.</h2><p class="lead">VETS VAN provides mobile veterinary visits across Riyadh. Exact appointment availability depends on the neighborhood, schedule, and service required.</p><p><a href="/services/">Explore services →</a></p><div class="ar"><h2>نخدم أصحاب الحيوانات الأليفة في أنحاء الرياض.</h2><p class="lead">توفر VETS VAN زيارات بيطرية متنقلة في أنحاء الرياض، ويعتمد توفر الموعد على الحي والجدول والخدمة المطلوبة.</p><p><a href="/services/">استكشف الخدمات ←</a></p></div></section>
-</main><footer class="wrap footer">© 2026 VETS VAN · Riyadh, Saudi Arabia · <a href="tel:+966920011626">+966920011626</a></footer>
-</body></html>
+<header>
+        <div class="container nav-container">
+            <a href="#" class="logo" onclick="navTo('home')">
+                <img src="Vets_van_logo_png.png" alt="VETS VAN Logo" style="height: 48px;">
+            </a>
+            
+            <div style="display: flex; align-items: center; gap: 2rem;">
+                <nav class="nav-links" id="navLinks">
+                    <a href="/" class="active-link">
+                        <span class="en-only">Home</span>
+                        <span class="ar-only">الرئيسية</span>
+                    </a>
+                    <a href="/services/">
+                        <span class="en-only">Our Services</span>
+                        <span class="ar-only">خدماتنا</span>
+                    </a>
+                    <a href="/about/">
+                        <span class="en-only">About Us</span>
+                        <span class="ar-only">من نحن</span>
+                    </a>
+                    <a href="/contact/">
+                        <span class="en-only">Contact Us</span>
+                        <span class="ar-only">تواصل معنا</span>
+                    </a>
+                    <a href="/#book" class="btn btn-primary" style="padding: 12px 24px; font-size: 1rem;">
+                        <span class="en-only">Book Now</span>
+                        <span class="ar-only">احجز الآن</span>
+                    </a>
+                </nav>
+
+                <!-- LANGUAGE SWITCHER -->
+                <div class="lang-switcher" aria-label="Language selector">
+                    <i class="fa-solid fa-globe lang-icon" aria-hidden="true"></i>
+                    <a href="#" onclick="switchLang('en'); return false;" class="lang-btn en-btn active">EN</a>
+                    <span class="lang-separator">/</span>
+                    <a href="#" onclick="switchLang('ar'); return false;" class="lang-btn ar-btn">AR</a>
+                </div>
+
+                <i class="fa-solid fa-bars menu-toggle" onclick="toggleMenu()"></i>
+            </div>
+        </div>
+    </header>
+<main id="contact" class="page active">
+        <section class="section container">
+            <div class="editorial-panel" style="padding-top: 4rem; padding-bottom: 4rem;">
+                <div class="text-center reveal" style="margin-bottom: 3rem;">
+                    <h1 class="title-huge">
+                       <span class="en-only" style="color: var(--purple);">Get In Touch.</span>
+                       <span class="ar-only" style="color: var(--purple);">تواصل معنا.</span>
+                    </h1>
+                    <p class="subtitle-lg">
+                        <span class="en-only">Have a question or need assistance? Our team is ready to help.</span>
+                        <span class="ar-only">هل لديك استفسار أو تحتاج إلى مساعدة؟ فريقنا مستعد لخدمتك.</span>
+                    </p>
+                </div>
+
+                <div class="grid-asym">
+                    <div class="reveal">
+                        <div style="margin-bottom: 2rem;">
+                            <h4 style="font-size: 1.2rem; color: var(--gray); margin-bottom: 0.4rem;"><span class="en-only">Phone & WhatsApp</span><span class="ar-only">الهاتف والواتس اب</span></h4>
+                            <a href="tel:+966920011626" class="title-lg" style="margin:0;direction:ltr;text-align:left;display:inline-block;color:var(--black)">+966920011626</a>
+                        </div>
+                        <div style="margin-bottom: 2rem;">
+                            <h4 style="font-size: 1.2rem; color: var(--gray); margin-bottom: 0.4rem;"><span class="en-only">Email</span><span class="ar-only">البريد الإلكتروني</span></h4>
+                            <a href="mailto:Info@vetsvan.com" class="title-lg" style="margin:0;display:inline-block;color:var(--black)">Info@vetsvan.com</a>
+                        </div>
+                        <div>
+                            <h4 style="font-size: 1.2rem; color: var(--gray); margin-bottom: 0.4rem;"><span class="en-only">Location</span><span class="ar-only">الموقع</span></h4>
+                            <p class="title-md" style="margin: 0;">
+                                <span class="en-only">Riyadh,<br>Saudi Arabia</span>
+                                <span class="ar-only">الرياض،<br>المملكة العربية السعودية</span>
+                            </p>
+                            <!-- Contact page booking CTA -->
+                            <div style="margin-top:2rem"><a href="/#book" class="btn btn-primary"><span class="en-only">Book a Home Visit</span><span class="ar-only">احجز زيارة منزلية</span></a></div>
+                        </div>
+                    </div>
+                    
+                    <div class="editorial-card reveal reveal-delay-1" style="background: var(--bg-offwhite);">
+                        <h3 class="title-lg" style="margin-bottom: 1.5rem;">
+                            <span class="en-only">Send a Message</span>
+                            <span class="ar-only">إرسال رسالة</span>
+                        </h3>
+                        <div class="form-group">
+                            <label class="form-label"><span class="en-only">Full Name</span><span class="ar-only">الاسم الكامل</span></label>
+                            <input type="text" id="contactName" class="form-control en-only" placeholder="Your Name" style="background: var(--white);">
+                            <input type="text" id="contactNameAr" class="form-control ar-only" placeholder="أدخل اسمك" style="background: var(--white);">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label"><span class="en-only">Mobile Number</span><span class="ar-only">رقم الجوال</span></label>
+                            <input type="tel" id="contactPhone" class="form-control en-only" placeholder="05x xxx xxxx" style="background: var(--white);">
+                            <input type="tel" id="contactPhoneAr" class="form-control ar-only" placeholder="05x xxx xxxx" style="background: var(--white);">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label"><span class="en-only">Email</span><span class="ar-only">البريد الإلكتروني</span></label>
+                            <input type="email" id="contactEmail" class="form-control" placeholder="your@email.com" style="background: var(--white);">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label"><span class="en-only">Subject</span><span class="ar-only">الموضوع</span></label>
+                            <input type="text" id="contactSubject" class="form-control en-only" placeholder="How can we help?">
+                            <input type="text" id="contactSubjectAr" class="form-control ar-only" placeholder="كيف يمكننا مساعدتك؟">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label"><span class="en-only">Message</span><span class="ar-only">الرسالة</span></label>
+                            <textarea id="contactMessage" class="form-control en-only" rows="4" placeholder="Your message..." style="background: var(--white);"></textarea>
+                            <textarea id="contactMessageAr" class="form-control ar-only" rows="4" placeholder="اكتب رسالتك هنا..." style="background: var(--white);"></textarea>
+                        </div>
+                        <button class="btn btn-primary btn-block" onclick="submitContactForm()" style="padding: 16px;">
+                            <span class="en-only">Send Message</span>
+                            <span class="ar-only">إرسال الرسالة</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section container reveal">
+            <h2 class="title-xl text-center" style="margin-bottom: 2rem;">
+                <span class="en-only">VETS VAN in Riyadh</span>
+                <span class="ar-only">VETS VAN في الرياض</span>
+            </h2>
+            <div class="map-container" style="overflow: hidden; height: 350px;">
+                <iframe loading="lazy" width="100%" height="100%" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://maps.google.com/maps?q=24.8337703,46.7354466&z=16&output=embed" style="border-radius: var(--radius-lg);"></iframe>
+            </div>
+        </section>
+    </main>
+<footer>
+        <div class="container reveal">
+            <div class="grid-asym">
+                <div>
+                    <div style="background-color: var(--white); display: inline-flex; padding: 12px 20px; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
+                        <img src="Vets_van_logo_png.png" alt="VETS VAN Logo" style="height: 38px;">
+                    </div>
+                    
+                    <h2 class="title-xl" style="color: var(--white); max-width: 450px; margin-bottom: 1.5rem; font-size: 2rem;">
+                        <span class="en-only">Premium Pet Care, Delivered.</span>
+                        <span class="ar-only">رعاية بيطرية متميزة، إلى باب بيتك.</span>
+                    </h2>
+                    
+                    <div class="social-icons">
+                        <a href="https://www.instagram.com/vets_van/" target="_blank" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+                        <a href="https://www.tiktok.com/@vetsvan" target="_blank" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i></a>
+                        <a href="#" target="_blank" aria-label="Snapchat"><i class="fa-brands fa-snapchat"></i></a>
+                        <a href="#" target="_blank" aria-label="X">
+                            <img src="data:image/webp;base64,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" alt="X" class="x-social-logo">
+                        </a>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div>
+                        <h4><span class="en-only">Menu</span><span class="ar-only">القائمة</span></h4>
+                        <a href="/"><span class="en-only">Home</span><span class="ar-only">الرئيسية</span></a>
+                        <a href="/#book"><span class="en-only">Book Now</span><span class="ar-only">احجز الآن</span></a>
+                        <a href="/services/"><span class="en-only">Our Services</span><span class="ar-only">خدماتنا</span></a>
+                        <a href="/about/"><span class="en-only">About Us</span><span class="ar-only">من نحن</span></a>
+                        <a href="/contact/"><span class="en-only">Contact Us</span><span class="ar-only">تواصل معنا</span></a>
+                    </div>
+                    <div>
+                        <h4><span class="en-only">Contact</span><span class="ar-only">تواصل معنا</span></h4>
+                        <a href="tel:+966920011626" class="en-only">+966920011626</a>
+                        <a href="tel:+966920011626" class="ar-only" style="direction: ltr; display: inline-block;">+966920011626</a>
+                        <p style="color: #A0A0A0; margin-top: 1.5rem; font-size: 1.1rem;">
+                            <span class="en-only">Riyadh,<br>Saudi Arabia</span>
+                            <span class="ar-only">الرياض،<br>المملكة العربية السعودية</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p class="en-only">&copy; 2026 VETS VAN. All Rights Reserved.</p>
+                <p class="ar-only">&copy; 2026 VETS VAN. جميع الحقوق محفوظة.</p>
+            </div>
+        </div>
+    </footer>
+
+<script>
+function applyLanguage(lang, persist=true){
+  const safe = lang === 'ar' ? 'ar' : 'en';
+  document.documentElement.lang=safe;
+  document.documentElement.dir=safe==='ar'?'rtl':'ltr';
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.'+safe+'-btn').forEach(b=>b.classList.add('active'));
+  if(persist){try{localStorage.setItem('vv_language',safe)}catch(_){}}
+}
+function switchLang(lang){applyLanguage(lang,true)}
+document.addEventListener('DOMContentLoaded',()=>{
+  let saved='en'; try{saved=localStorage.getItem('vv_language')||'en'}catch(_){}
+  applyLanguage(saved==='ar'?'ar':'en',false);
+  document.querySelectorAll('.reveal').forEach(el=>el.classList.add('active'));
+});
+function toggleMenu(){document.getElementById('navLinks')?.classList.toggle('show')}
+</script>
+
+</body>
+</html>
