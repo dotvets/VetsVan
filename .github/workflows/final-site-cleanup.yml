@@ -1,0 +1,47 @@
+name: Final site cleanup
+on:
+  push:
+    paths:
+      - '.github/workflows/final-site-cleanup.yml'
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply cleanup
+        run: python scripts/final-site-cleanup.py
+      - name: Verify
+        run: |
+          set -e
+          grep -R -Fq 'https://www.snapchat.com/@vetsvan' index.html about/index.html contact/index.html services/index.html ar/index.html ar/about/index.html ar/contact/index.html ar/services/index.html
+          ! grep -R -Fq 'aria-label="X"' index.html about/index.html contact/index.html services/index.html ar/index.html ar/about/index.html ar/contact/index.html ar/services/index.html
+          for f in services/vaccinations/index.html services/dental-cleaning/index.html services/diagnostic-imaging/index.html services/pet-travel-certificate/index.html; do
+            grep -Fq '</div></header><main>' "$f"
+            grep -Fq 'twitter:title' "$f"
+            grep -Fq 'twitter:description' "$f"
+            grep -Fq 'twitter:image' "$f"
+            grep -Fq 'og:image' "$f"
+          done
+          for f in ar/services/vaccinations/index.html ar/services/dental-cleaning/index.html ar/services/diagnostic-imaging/index.html ar/services/pet-travel-certificate/index.html; do
+            grep -Fq 'twitter:title' "$f"
+            grep -Fq 'twitter:description' "$f"
+            grep -Fq 'twitter:image' "$f"
+          done
+          grep -Fq 'Disallow: /admin/' robots.txt
+          grep -Fq 'noindex, nofollow' admin/login.html
+          grep -Fq "app.set('trust proxy', 1);" server/index.js
+          grep -Fq "const ip=String(req.ip || req.socket.remoteAddress || 'unknown');" server/index.js
+          grep -Fq "X-Robots-Tag','noindex, nofollow" server/index.js
+          ! grep -q '<lastmod>2026-09-03</lastmod>' sitemap.xml
+          node --check server/index.js
+      - name: Commit
+        run: |
+          git config user.name "Mohamed-Omaar"
+          git config user.email "mohamed.mostafa.omaar@gmail.com"
+          git add index.html about/index.html contact/index.html services/index.html ar/index.html ar/about/index.html ar/contact/index.html ar/services/index.html services/*/index.html ar/services/*/index.html sitemap.xml robots.txt admin/login.html server/index.js
+          git commit -m "Finish social SEO and admin hardening cleanup"
+          git rm .github/workflows/final-site-cleanup.yml scripts/final-site-cleanup.py
+          git commit -m "Remove temporary cleanup tooling"
+          git push
