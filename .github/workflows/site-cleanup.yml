@@ -10,143 +10,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Apply safe cleanup
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import re
-
-          index = Path('index.html')
-          server = Path('server/index.js')
-          booking = Path('booking-source.js')
-
-          s = index.read_text()
-
-          # Root-relative assets so nested routes resolve correctly.
-          s = s.replace('href="Icon.png"', 'href="/Icon.png"')
-          for name in [
-              'Vets_van_logo_png.png','clinic-van.png','Layer_35.jpg','Image_3.jpeg',
-              'InsideVan.jpg','doc_img.jpeg','Layer_34.png_202603281018.jpg',
-              'retouc_the_lady_skin_and_202606111029.jpeg'
-          ]:
-              s = s.replace(f'src="{name}"', f'src="/{name}"')
-
-          # Schema: services are Service entities provided by VETS VAN.
-          for n in ['Wellness Exams','Vaccinations','Diagnostic Lab Tests','Dental Care','Diagnostic Imaging','Health & Travel Certificates']:
-              s = s.replace(f'{{"@type":"VeterinaryCare","name":"{n}"}}', f'{{"@type":"Service","name":"{n}"}}')
-
-          # Semantic Home/logo navigation.
-          s = s.replace('<a href="#" class="logo" onclick="navTo(\'home\')">', '<a href="/" class="logo">', 1)
-          s = s.replace('<a href="#" onclick="navTo(\'home\')" class="active-link">', '<a href="/" class="active-link">', 1)
-          s = s.replace("function resetBookingAndGoHome() {\n            nextStep(1);\n            navTo('home');\n        }",
-                        "function resetBookingAndGoHome() {\n            nextStep(1);\n            window.location.href = '/';\n        }")
-
-          # Remove duplicated full standalone page sections from the home document.
-          for page_id in ['services','about','contact']:
-              pat = re.compile(rf'\n\s*<main id="{page_id}" class="page">[\s\S]*?</main>\s*', re.I)
-              s, count = pat.subn('\n', s, count=1)
-              if count != 1:
-                  raise SystemExit(f'Could not remove duplicate main #{page_id}')
-
-          # Redirect old hash routes to canonical real URLs.
-          old_init = """            const initialPage = location.hash.replace('#', '');
-            if (['book', 'services', 'about', 'contact'].includes(initialPage)) {
-                navTo(initialPage, false);
-            }"""
-          new_init = """            const initialPage = location.hash.replace('#', '');
-            const legacyRoutes = { book: '/book/', services: '/services/', about: '/about/', contact: '/contact/' };
-            if (legacyRoutes[initialPage] && location.pathname === '/') {
-                window.location.replace(legacyRoutes[initialPage]);
-            }"""
-          if old_init not in s:
-              raise SystemExit('Initial hash navigation block not found')
-          s = s.replace(old_init, new_init, 1)
-
-          old_pop = """        window.addEventListener('popstate', () => {
-            const route = location.hash.replace('#', '');
-            navTo(['book', 'services', 'about', 'contact'].includes(route) ? route : 'home', false);
-        });"""
-          new_pop = """        window.addEventListener('popstate', () => {
-            const route = location.hash.replace('#', '');
-            const legacyRoutes = { book: '/book/', services: '/services/', about: '/about/', contact: '/contact/' };
-            if (legacyRoutes[route] && location.pathname === '/') window.location.replace(legacyRoutes[route]);
-        });"""
-          if old_pop not in s:
-              raise SystemExit('Popstate block not found')
-          s = s.replace(old_pop, new_pop, 1)
-          index.write_text(s)
-
-          # booking-source: /book/ activates booking; old hashes redirect to canonical real pages.
-          b = booking.read_text()
-          old_deep = """  function applyDeepLink() {
-    const cleanPath = location.pathname.replace(/\\/+$/, '') || '/';
-    const pathPage = cleanPath === '/book' ? 'book' : '';
-    const hashPage = location.hash.replace(/^#/, '');
-    const id = pathPage || hashPage;
-    if (!['home', 'book', 'services', 'about', 'contact'].includes(id)) return;
-    if (typeof window.navTo === 'function') {
-      try { window.navTo(id, false); } catch {
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.getElementById(id)?.classList.add('active');
-        window.scrollTo(0, 0);
-      }
-    }
-  }"""
-          new_deep = """  function applyDeepLink() {
-    const cleanPath = location.pathname.replace(/\\/+$/, '') || '/';
-    if (cleanPath === '/book') {
-      if (typeof window.navTo === 'function') {
-        try { window.navTo('book', false); } catch {
-          document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-          document.getElementById('book')?.classList.add('active');
-          window.scrollTo(0, 0);
-        }
-      }
-      return;
-    }
-    const hashPage = location.hash.replace(/^#/, '');
-    const legacyRoutes = { book: '/book/', services: '/services/', about: '/about/', contact: '/contact/' };
-    if (cleanPath === '/' && legacyRoutes[hashPage]) window.location.replace(legacyRoutes[hashPage]);
-  }"""
-          if old_deep not in b:
-              raise SystemExit('booking-source deep link block not found')
-          booking.write_text(b.replace(old_deep, new_deep, 1))
-
-          # /book/ serves the same single booking implementation, but strips non-book page sections.
-          sv = server.read_text()
-          marker = "    let html = await fs.readFile(path.join(__dirname, '..', 'index.html'), 'utf8');"
-          inject = """    let html = await fs.readFile(path.join(__dirname, '..', 'index.html'), 'utf8');
-    // Keep /book/ focused while reusing the one canonical booking implementation.
-    for (const pageId of ['home', 'services', 'about', 'contact']) {
-      html = html.replace(new RegExp(`<main id=[\\"']${pageId}[\\"'][^>]*>[\\s\\S]*?<\\/main>`, 'i'), '');
-    }
-    if (!/<base\\s/i.test(html)) html = html.replace(/<head>/i, '<head>\\n    <base href="/">');"""
-          if marker not in sv:
-              raise SystemExit('book route html marker not found')
-          server.write_text(sv.replace(marker, inject, 1))
-
-          # Add OG/Twitter metadata to standalone top-level pages if absent.
-          page_meta = {
-              'services/index.html': ('Mobile Veterinary Services in Riyadh | VETS VAN', 'Explore VETS VAN mobile veterinary services in Riyadh, including wellness exams, vaccinations, lab tests, dental care, imaging and travel certificates.', 'https://www.vetsvan.com/services/'),
-              'about/index.html': ('About VETS VAN | Mobile Veterinary Care in Riyadh', 'Learn about VETS VAN, our solar-powered mobile veterinary clinics, veterinary partnerships and expert care across Riyadh.', 'https://www.vetsvan.com/about/'),
-              'contact/index.html': ('Contact VETS VAN | Mobile Vet Riyadh', 'Contact VETS VAN in Riyadh for mobile veterinary care, booking help and service enquiries.', 'https://www.vetsvan.com/contact/')
-          }
-          for fp, (title, desc, url) in page_meta.items():
-              p = Path(fp)
-              t = p.read_text()
-              if 'property="og:title"' not in t:
-                  block = f'''\n<meta property="og:type" content="website">\n<meta property="og:site_name" content="VETS VAN">\n<meta property="og:title" content="{title}">\n<meta property="og:description" content="{desc}">\n<meta property="og:url" content="{url}">\n<meta property="og:image" content="https://www.vetsvan.com/clinic-van.png">\n<meta name="twitter:card" content="summary_large_image">\n<meta name="twitter:title" content="{title}">\n<meta name="twitter:description" content="{desc}">\n<meta name="twitter:image" content="https://www.vetsvan.com/clinic-van.png">'''
-                  t = t.replace('<link rel="icon"', block + '\n<link rel="icon"', 1)
-              p.write_text(t)
-
-          # Refresh sitemap dates for changed top-level pages.
-          sm = Path('sitemap.xml')
-          x = sm.read_text()
-          for u in ['https://www.vetsvan.com/','https://www.vetsvan.com/services/','https://www.vetsvan.com/about/','https://www.vetsvan.com/contact/','https://www.vetsvan.com/book/']:
-              x = re.sub(rf'(<loc>{re.escape(u)}</loc><lastmod>)\d{{4}}-\d{{2}}-\d{{2}}', rf'\g<1>2026-09-06', x)
-          sm.write_text(x)
-          PY
-      - name: Verify cleanup
+      - name: Apply cleanup
+        run: python scripts/site-cleanup.py
+      - name: Verify
         run: |
           set -e
           grep -q 'src="/Vets_van_logo_png.png"' index.html
@@ -156,20 +22,17 @@ jobs:
           ! grep -q '<main id="contact" class="page">' index.html
           grep -q '<main id="book" class="page">' index.html
           grep -q '"@type":"Service","name":"Vaccinations"' index.html
-          grep -Fq "for (const pageId of ['home', 'services', 'about', 'contact'])" server/index.js
-          grep -q '<base href="/">' services/index.html
           grep -q 'property="og:title"' services/index.html
           grep -q 'property="og:title"' about/index.html
           grep -q 'property="og:title"' contact/index.html
-          grep -q 'https://www.vetsvan.com/book/' sitemap.xml
           node --check server/index.js
           node --check booking-source.js
-      - name: Commit cleanup
+      - name: Commit
         run: |
           git config user.name "Mohamed-Omaar"
           git config user.email "mohamed.mostafa.omaar@gmail.com"
           git add index.html booking-source.js server/index.js services/index.html about/index.html contact/index.html sitemap.xml
           git commit -m "Clean standalone routes and booking SEO"
-          git rm .github/workflows/site-cleanup.yml
-          git commit -m "Remove temporary site cleanup workflow"
+          git rm .github/workflows/site-cleanup.yml scripts/site-cleanup.py
+          git commit -m "Remove temporary cleanup tooling"
           git push
