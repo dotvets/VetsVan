@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
 <title>قيّم تجربتك — VetsVan</title>
 <style>
   * { box-sizing: border-box; font-family: Tahoma, Arial, sans-serif; }
@@ -33,7 +35,7 @@
     <button id="submitBtn" disabled>إرسال التقييم</button>
   </div>
   <div class="msg" id="msg"></div>
-  <a class="wa" id="waLink" target="_blank" href="#">أو قيّمنا عبر واتساب 💬</a>
+  <a class="wa" id="waLink" target="_blank" rel="noopener noreferrer" href="#">أو قيّمنا عبر واتساب 💬</a>
 </div>
 <script>
 const code = new URLSearchParams(location.search).get('code') || '';
