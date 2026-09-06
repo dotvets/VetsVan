@@ -16,6 +16,7 @@ const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 5000;
+app.set('trust proxy', 1);
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(48).toString('hex');
 if (!process.env.JWT_SECRET) console.warn('JWT_SECRET is not configured; using an ephemeral secret for this process.');
 const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) : null;
@@ -34,7 +35,7 @@ const rateBuckets = new Map();
 function rateLimit({ windowMs, max }) {
   return (req,res,next)=>{
     const now=Date.now();
-    const ip=(req.headers['x-forwarded-for']||req.socket.remoteAddress||'unknown').toString().split(',')[0].trim();
+    const ip=String(req.ip || req.socket.remoteAddress || 'unknown');
     const key=req.path+'|'+ip;
     let b=rateBuckets.get(key);
     if(!b||now-b.start>=windowMs){ b={start:now,count:0}; rateBuckets.set(key,b); }
@@ -47,6 +48,7 @@ const loginRateLimit=rateLimit({windowMs:15*60*1000,max:10});
 const publicWriteRateLimit=rateLimit({windowMs:60*60*1000,max:30});
 setInterval(()=>{ const now=Date.now(); for(const [k,b] of rateBuckets) if(now-b.start>2*60*60*1000) rateBuckets.delete(k); },30*60*1000).unref();
 
+app.use((req,res,next)=>{ if(req.path.startsWith('/admin')) res.setHeader('X-Robots-Tag','noindex, nofollow'); next(); });
 app.use((req,res,next)=>req.path.startsWith('/admin')?next():express.static(path.join(__dirname,'..'))(req,res,next));
 async function query(text, params = []) { if (!pool) throw new Error('DATABASE_URL is not configured'); return pool.query(text, params); }
 async function bootstrap() {
