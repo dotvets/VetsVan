@@ -435,16 +435,16 @@ async function renderBookingPage(res, arabic = false) {
     html = html.replace(new RegExp('<meta\\s+name=["\\\']twitter:description["\\\'][^>]*>', 'i'), `<meta name="twitter:description" content="${description}">`);
     if (arabic) {
       html = html.replace(/<html lang="en" dir="ltr">/i, '<html lang="ar" dir="rtl">');
-      html = html.replace('<head>', `<head>\n    <script>try{localStorage.setItem('vv_language','ar')}catch(e){}</script>`);
+      html = html.replace("<script>try{localStorage.setItem('vv_language','en')}catch(e){}</script>", "<script>try{localStorage.setItem('vv_language','ar')}catch(e){}</script>");
       html = html.replaceAll('href="/services/', 'href="/ar/services/').replaceAll('href="/about/"', 'href="/ar/about/"').replaceAll('href="/contact/"', 'href="/ar/contact/"').replaceAll('href="/book/"', 'href="/ar/book/"');
       html = html.replace('<a href="/" class="logo">', '<a href="/ar/" class="logo">');
       html = html.replace('<a href="/" class="active-link">', '<a href="/ar/" class="active-link">');
-      html = html.replace(new RegExp('<a href="#" onclick="switchLang\\(\\\'en\\\'\\); return false;" class="lang-btn en-btn(?: active)?">EN<\\/a>'), '<a href="/book/" class="lang-btn en-btn">EN</a>');
-      html = html.replace(new RegExp('<a href="#" onclick="switchLang\\(\\\'ar\\\'\\); return false;" class="lang-btn ar-btn(?: active)?">AR<\\/a>'), '<a href="/ar/book/" class="lang-btn ar-btn active">AR</a>');
+      html = html.replace(new RegExp('<a href="[^"]*" class="lang-btn en-btn(?: active)?">EN<\/a>'), '<a href="/book/" class="lang-btn en-btn">EN</a>');
+      html = html.replace(new RegExp('<a href="[^"]*" class="lang-btn ar-btn(?: active)?">AR<\/a>'), '<a href="/ar/book/" class="lang-btn ar-btn active">AR</a>');
     } else {
-      html = html.replace('<head>', `<head>\n    <script>try{localStorage.setItem('vv_language','en')}catch(e){}</script>`);
-      html = html.replace(new RegExp('<a href="#" onclick="switchLang\\(\\\'en\\\'\\); return false;" class="lang-btn en-btn(?: active)?">EN<\\/a>'), '<a href="/book/" class="lang-btn en-btn active">EN</a>');
-      html = html.replace(new RegExp('<a href="#" onclick="switchLang\\(\\\'ar\\\'\\); return false;" class="lang-btn ar-btn(?: active)?">AR<\\/a>'), '<a href="/ar/book/" class="lang-btn ar-btn">AR</a>');
+      if (!html.includes("localStorage.setItem('vv_language','en')")) html = html.replace('<head>', `<head>\n    <script>try{localStorage.setItem('vv_language','en')}catch(e){}</script>`);
+      html = html.replace(new RegExp('<a href="[^"]*" class="lang-btn en-btn(?: active)?">EN<\/a>'), '<a href="/book/" class="lang-btn en-btn active">EN</a>');
+      html = html.replace(new RegExp('<a href="[^"]*" class="lang-btn ar-btn(?: active)?">AR<\/a>'), '<a href="/ar/book/" class="lang-btn ar-btn">AR</a>');
     }
     res.set('Cache-Control', 'public, max-age=300');
     res.type('html').send(html);
