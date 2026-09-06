@@ -1240,5 +1240,39 @@
         }
     </script>
     <script src="/booking-source.js" defer></script>
+<script id="vv-active-navigation">
+(function () {
+  function normalizePath(value) {
+    try {
+      const url = new URL(value, window.location.origin);
+      let p = url.pathname || '/';
+      if (p !== '/' && !p.endsWith('/')) p += '/';
+      return p;
+    } catch (_) { return value; }
+  }
+
+  function applyActiveNavigation() {
+    let current = normalizePath(window.location.pathname);
+    document.querySelectorAll('.nav-links > a').forEach(function (link) {
+      link.classList.remove('active-link');
+      link.removeAttribute('aria-current');
+      const href = link.getAttribute('href');
+      if (!href || href === '#') return;
+      const target = normalizePath(href);
+      if (target === current) {
+        link.classList.add('active-link');
+        link.setAttribute('aria-current', 'page');
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyActiveNavigation);
+  } else {
+    applyActiveNavigation();
+  }
+  window.addEventListener('popstate', applyActiveNavigation);
+})();
+</script>
 </body>
 </html>

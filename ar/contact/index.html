@@ -446,7 +446,7 @@
 <header>
         <div class="container nav-container">
             <a href="#" class="logo" onclick="navTo('home')">
-                <img src="Vets_van_logo_png.png" alt="VETS VAN Logo" style="height: 48px;">
+                <img src="/Vets_van_logo_png.png" alt="VETS VAN Logo" style="height: 48px;">
             </a>
             
             <div style="display: flex; align-items: center; gap: 2rem;">
@@ -573,7 +573,7 @@
             <div class="grid-asym">
                 <div>
                     <div style="background-color: var(--white); display: inline-flex; padding: 12px 20px; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
-                        <img src="Vets_van_logo_png.png" alt="VETS VAN Logo" style="height: 38px;">
+                        <img src="/Vets_van_logo_png.png" alt="VETS VAN Logo" style="height: 38px;">
                     </div>
                     
                     <h2 class="title-xl" style="color: var(--white); max-width: 450px; margin-bottom: 1.5rem; font-size: 2rem;">
@@ -635,5 +635,39 @@ document.addEventListener('DOMContentLoaded',()=>{
 function toggleMenu(){document.getElementById('navLinks')?.classList.toggle('show')}
 </script>
 
+<script id="vv-active-navigation">
+(function () {
+  function normalizePath(value) {
+    try {
+      const url = new URL(value, window.location.origin);
+      let p = url.pathname || '/';
+      if (p !== '/' && !p.endsWith('/')) p += '/';
+      return p;
+    } catch (_) { return value; }
+  }
+
+  function applyActiveNavigation() {
+    let current = normalizePath(window.location.pathname);
+    document.querySelectorAll('.nav-links > a').forEach(function (link) {
+      link.classList.remove('active-link');
+      link.removeAttribute('aria-current');
+      const href = link.getAttribute('href');
+      if (!href || href === '#') return;
+      const target = normalizePath(href);
+      if (target === current) {
+        link.classList.add('active-link');
+        link.setAttribute('aria-current', 'page');
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyActiveNavigation);
+  } else {
+    applyActiveNavigation();
+  }
+  window.addEventListener('popstate', applyActiveNavigation);
+})();
+</script>
 </body>
 </html>
