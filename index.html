@@ -31,16 +31,16 @@
       "areaServed":{"@type":"City","name":"Riyadh"},
       "sameAs":["https://www.instagram.com/vets_van/","https://www.tiktok.com/@vetsvan"],
       "availableService":[
-        {"@type":"VeterinaryCare","name":"Wellness Exams"},
-        {"@type":"VeterinaryCare","name":"Vaccinations"},
-        {"@type":"VeterinaryCare","name":"Diagnostic Lab Tests"},
-        {"@type":"VeterinaryCare","name":"Dental Care"},
-        {"@type":"VeterinaryCare","name":"Diagnostic Imaging"},
-        {"@type":"VeterinaryCare","name":"Health & Travel Certificates"}
+        {"@type":"Service","name":"Wellness Exams"},
+        {"@type":"Service","name":"Vaccinations"},
+        {"@type":"Service","name":"Diagnostic Lab Tests"},
+        {"@type":"Service","name":"Dental Care"},
+        {"@type":"Service","name":"Diagnostic Imaging"},
+        {"@type":"Service","name":"Health & Travel Certificates"}
       ]
     }
     </script>
-    <link rel="icon" type="image/png" href="Icon.png">
+    <link rel="icon" type="image/png" href="/Icon.png">
     <link rel="preload" as="image" href="/clinic-van.png" fetchpriority="high">
     
     <!-- English & Arabic Modern Typography -->
@@ -476,13 +476,13 @@
     <!-- HEADER -->
     <header>
         <div class="container nav-container">
-            <a href="#" class="logo" onclick="navTo('home')">
+            <a href="/" class="logo">
                 <img src="/Vets_van_logo_png.png" alt="VETS VAN Logo" style="height: 48px;">
             </a>
             
             <div style="display: flex; align-items: center; gap: 2rem;">
                 <nav class="nav-links" id="navLinks">
-                    <a href="#" onclick="navTo('home')" class="active-link">
+                    <a href="/" class="active-link">
                         <span class="en-only">Home</span>
                         <span class="ar-only">الرئيسية</span>
                     </a>
@@ -549,7 +549,7 @@
                 
                 <!-- PNG Vehicle interacting visually with the background -->
                 <div class="hero-van-wrapper">
-                    <img src="clinic-van.png" alt="VETS VAN mobile veterinary clinic in Riyadh" class="hero-van" fetchpriority="high" decoding="async">
+                    <img src="/clinic-van.png" alt="VETS VAN mobile veterinary clinic in Riyadh" class="hero-van" fetchpriority="high" decoding="async">
                 </div>
             </div>
         </section>
@@ -559,7 +559,7 @@
             <div class="grid-asym-rev">
                 <div class="reveal">
                     <div class="img-editorial-wrap">
-                        <img loading="lazy" decoding="async" src="Layer_35.jpg" alt="Client walking dog to Vets Van" class="img-editorial">
+                        <img loading="lazy" decoding="async" src="/Layer_35.jpg" alt="Client walking dog to Vets Van" class="img-editorial">
                     </div>
                 </div>
                 <div class="reveal reveal-delay-1">
@@ -658,7 +658,7 @@
                         </a>
                     </div>
                     <div class="img-reveal-wrap reveal reveal-delay-1 float-anim" style="aspect-ratio: 4/3;">
-                        <img loading="lazy" decoding="async" src="Image_3.jpeg" alt="Mobile Veterinary Van Setup" class="img-editorial">
+                        <img loading="lazy" decoding="async" src="/Image_3.jpeg" alt="Mobile Veterinary Van Setup" class="img-editorial">
                     </div>
                 </div>
             </div>
@@ -1024,313 +1024,15 @@
     </main>
 
     <!-- PAGE 3: OUR SERVICES -->
-    <main id="services" class="page">
-        <section class="section container text-center reveal">
-            <h1 class="title-huge" style="margin-top: 1rem;">
-                <span class="en-only" style="color: var(--purple);">Comprehensive Care.</span>
-                <span class="ar-only" style="color: var(--purple);">رعاية متكاملة.</span>
-            </h1>
-            <p class="subtitle-lg" style="max-width: 800px; margin: 0 auto;">
-                <span class="en-only">Veterinary services delivered with expertise, compassion, and cutting-edge technology directly to your home.</span>
-                <span class="ar-only">خدمات بيطرية شاملة تُقدم لك بخبرة، ورحمة، وأحدث التقنيات مباشرة إلى منزلك.</span>
-            </p>
-        </section>
-
-        <section class="container" style="padding-bottom: 4rem;">
-            <div class="grid-2">
-                <!-- Service Cards Editorial Style -->
-                <div class="editorial-card reveal">
-                    <span class="num-editorial">01</span>
-                    <h3 class="title-lg">
-                        <i class="fa-solid fa-stethoscope" style="margin-inline-end: 10px; color: var(--purple);"></i>
-                        <span class="en-only">Wellness Exams</span><span class="ar-only">فحوصات العافية</span>
-                    </h3>
-                    <p class="subtitle-lg"><span class="en-only">Routine comprehensive physical examinations to actively monitor and maintain your pet's overall health.</span><span class="ar-only">فحوصات بدنية روتينية وشاملة للمراقبة النشطة والحفاظ على الصحة العامة لحيوانك الأليف.</span></p>
-                    <a href="/book/" style="font-weight: 800; font-size: 1.1rem;"><span class="en-only">Book This Service &rarr;</span><span class="ar-only">احجز هذه الخدمة &larr;</span></a>
-                </div>
-                
-                <div class="editorial-card reveal reveal-delay-1">
-                    <span class="num-editorial">02</span>
-                    <h3 class="title-lg">
-                        <i class="fa-solid fa-syringe" style="margin-inline-end: 10px; color: var(--purple);"></i>
-                        <span class="en-only">Vaccinations</span><span class="ar-only">التطعيمات</span>
-                    </h3>
-                    <p class="subtitle-lg"><span class="en-only">Essential core and lifestyle vaccines administered stress-free to protect against preventable diseases.</span><span class="ar-only">اللقاحات الأساسية والوقائية تُعطى في بيئة خالية من التوتر للحماية من الأمراض.</span></p>
-                    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center"><a href="/services/vaccinations/" style="font-weight:800;font-size:1.05rem"><span class="en-only">View Details &rarr;</span><span class="ar-only">عرض التفاصيل &larr;</span></a><a href="/book/" style="font-weight:800;font-size:1.05rem;color:var(--gray)"><span class="en-only">Book This Service</span><span class="ar-only">احجز هذه الخدمة</span></a></div>
-                </div>
-                
-                <div class="editorial-card reveal">
-                    <span class="num-editorial">03</span>
-                    <h3 class="title-lg">
-                        <i class="fa-solid fa-house-medical" style="margin-inline-end: 10px; color: var(--purple);"></i>
-                        <span class="en-only">Sick Visits</span><span class="ar-only">الزيارات المرضية</span>
-                    </h3>
-                    <p class="subtitle-lg"><span class="en-only">Prompt, compassionate care, diagnosis, and treatment for your pet when they are feeling unwell.</span><span class="ar-only">رعاية فورية وحانية، وتشخيص، وعلاج لحيوانك الأليف عندما يكون في حالة صحية غير جيدة.</span></p>
-                    <a href="/book/" style="font-weight: 800; font-size: 1.1rem;"><span class="en-only">Book This Service &rarr;</span><span class="ar-only">احجز هذه الخدمة &larr;</span></a>
-                </div>
-
-                <div class="editorial-card reveal reveal-delay-1">
-                    <span class="num-editorial">04</span>
-                    <h3 class="title-lg">
-                        <i class="fa-solid fa-flask" style="margin-inline-end: 10px; color: var(--purple);"></i>
-                        <span class="en-only">Lab Tests</span><span class="ar-only">الاختبارات المعملية</span>
-                    </h3>
-                    <p class="subtitle-lg"><span class="en-only">Comprehensive blood work and precise laboratory testing with rapid results right from your home.</span><span class="ar-only">فحوصات دم شاملة واختبارات معملية دقيقة مع نتائج سريعة مباشرة من منزلك.</span></p>
-                    <a href="/book/" style="font-weight: 800; font-size: 1.1rem;"><span class="en-only">Book This Service &rarr;</span><span class="ar-only">احجز هذه الخدمة &larr;</span></a>
-                </div>
-
-                <div class="editorial-card reveal">
-                    <span class="num-editorial">05</span>
-                    <h3 class="title-lg">
-                        <i class="fa-solid fa-tooth" style="margin-inline-end: 10px; color: var(--purple);"></i>
-                        <span class="en-only">Dental Care</span><span class="ar-only">تنظيف الأسنان</span>
-                    </h3>
-                    <p class="subtitle-lg"><span class="en-only">Professional oral hygiene, scaling, and dental care to keep your pet's smile healthy and pain-free.</span><span class="ar-only">عناية احترافية بصحة الفم والأسنان لضمان بقاء ابتسامة حيوانك الأليف صحية وخالية من الألم.</span></p>
-                    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center"><a href="/services/dental-cleaning/" style="font-weight:800;font-size:1.05rem"><span class="en-only">View Details &rarr;</span><span class="ar-only">عرض التفاصيل &larr;</span></a><a href="/book/" style="font-weight:800;font-size:1.05rem;color:var(--gray)"><span class="en-only">Book This Service</span><span class="ar-only">احجز هذه الخدمة</span></a></div>
-                </div>
-
-                <div class="editorial-card reveal reveal-delay-1">
-                    <span class="num-editorial">06</span>
-                    <h3 class="title-lg">
-                        <i class="fa-solid fa-microchip" style="margin-inline-end: 10px; color: var(--purple);"></i>
-                        <span class="en-only">Microchipping</span><span class="ar-only">الشريحة الإلكترونية</span>
-                    </h3>
-                    <p class="subtitle-lg"><span class="en-only">Safe, quick, and permanent identification to ensure your pet can always find their way back home.</span><span class="ar-only">وسيلة آمنة وسريعة ودائمة للتعرف على هوية حيوانك الأليف لضمان عودته بأمان دائماً.</span></p>
-                    <a href="/book/" style="font-weight: 800; font-size: 1.1rem;"><span class="en-only">Book This Service &rarr;</span><span class="ar-only">احجز هذه الخدمة &larr;</span></a>
-                </div>
-
-                <div class="editorial-card reveal">
-                    <span class="num-editorial">07</span>
-                    <h3 class="title-lg">
-                        <i class="fa-solid fa-x-ray" style="margin-inline-end: 10px; color: var(--purple);"></i>
-                        <span class="en-only">Diagnostic Imaging</span><span class="ar-only">التصوير التشخيصي</span>
-                    </h3>
-                    <p class="subtitle-lg"><span class="en-only">Advanced, on-the-spot mobile imaging solutions to aid in accurate, immediate medical diagnosis.</span><span class="ar-only">حلول تصوير متنقلة وفورية ومتطورة للمساعدة في التشخيص الطبي الدقيق والسريع.</span></p>
-                    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center"><a href="/services/diagnostic-imaging/" style="font-weight:800;font-size:1.05rem"><span class="en-only">View Details &rarr;</span><span class="ar-only">عرض التفاصيل &larr;</span></a><a href="/book/" style="font-weight:800;font-size:1.05rem;color:var(--gray)"><span class="en-only">Book This Service</span><span class="ar-only">احجز هذه الخدمة</span></a></div>
-                </div>
-
-                <div class="editorial-card reveal reveal-delay-1">
-                    <span class="num-editorial">08</span>
-                    <h3 class="title-lg">
-                        <i class="fa-solid fa-file-medical" style="margin-inline-end: 10px; color: var(--purple);"></i>
-                        <span class="en-only">Travel Certificates</span><span class="ar-only">الشهادات الصحية</span>
-                    </h3>
-                    <p class="subtitle-lg"><span class="en-only">Official veterinary examinations and documentation required for safe domestic or international travel.</span><span class="ar-only">فحوصات ووثائق بيطرية رسمية معتمدة لضمان السفر الآمن داخلياً أو دولياً.</span></p>
-                    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center"><a href="/services/pet-travel-certificate/" style="font-weight:800;font-size:1.05rem"><span class="en-only">View Details &rarr;</span><span class="ar-only">عرض التفاصيل &larr;</span></a><a href="/book/" style="font-weight:800;font-size:1.05rem;color:var(--gray)"><span class="en-only">Book This Service</span><span class="ar-only">احجز هذه الخدمة</span></a></div>
-                </div>
-            </div>
-        </section>
-    
-        <section class="container" style="padding-bottom:4rem">
-            <div class="editorial-panel text-center reveal" style="margin-top:0">
-                <h2 class="title-lg"><span class="en-only">Not sure which service your pet needs?</span><span class="ar-only">مش متأكد أي خدمة يحتاجها حيوانك الأليف؟</span></h2>
-                <p class="subtitle-lg" style="max-width:720px;margin:0 auto 1.5rem"><span class="en-only">Contact our team and we’ll help you choose the appropriate next step before booking.</span><span class="ar-only">تواصل مع فريقنا وسنساعدك في تحديد الخطوة المناسبة قبل الحجز.</span></p>
-                <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap"><a href="/contact/" class="btn btn-outline"><span class="en-only">Contact Us</span><span class="ar-only">تواصل معنا</span></a><a href="/book/" class="btn btn-primary"><span class="en-only">Book a Visit</span><span class="ar-only">احجز زيارة</span></a></div>
-            </div>
-        </section>
-</main>
-
-    <!-- PAGE 4: ABOUT US -->
-    <main id="about" class="page">
-        <section class="section container">
-            <div class="grid-asym-rev">
-                <div class="img-reveal-wrap reveal float-anim">
-                    <img src="clinic-van.png" alt="Vets Van Clinic" class="img-editorial">
-                </div>
-                <div class="reveal reveal-delay-1">
-                    <h1 class="title-huge">
-                        <span class="en-only">We,<br><span style="color: var(--purple);">VETS VAN.</span></span>
-                        <span class="ar-only">نحن،<br><span style="color: var(--purple);">VETS VAN.</span></span>
-                    </h1>
-                    <p class="subtitle-lg">
-                        <span class="en-only">Deliver innovative pet healthcare through solar-powered mobile clinics. By merging cutting-edge technology with veterinary expertise, we ensure pets receive premium care with ease and convenience.</span>
-                        <span class="ar-only">نقدم رعاية صحية مبتكرة للحيوانات الأليفة من خلال عيادات متنقلة تعمل بالطاقة الشمسية. عبر دمج أحدث التقنيات والخبرة البيطرية، نضمن حصول حيوانك الأليف على رعاية ممتازة بكل راحة وسهولة.</span>
-                    </p>
-                </div>
-            </div>
-        </section>
-
-        <!-- PARTNERSHIPS PANEL -->
-        <section class="container">
-            <div class="editorial-panel" style="background: var(--purple); color: var(--white);">
-                <div class="grid-asym">
-                    <div class="reveal">
-                        <h2 class="title-xl" style="color: var(--white);">
-                            <span class="en-only">Elite Partnerships.</span>
-                            <span class="ar-only">شراكات النخبة.</span>
-                        </h2>
-                        <p class="subtitle-lg" style="color: rgba(255,255,255,0.9); margin-bottom: 2rem;">
-                            <span class="en-only">Through partnerships with top veterinary facilities in Riyadh, we provide comprehensive veterinary solutions—from our solar-powered mobile diagnostics to advanced care in specialized facilities.</span>
-                            <span class="ar-only">من خلال شراكاتنا مع أفضل المنشآت البيطرية في الرياض، نقدم حلولاً بيطرية شاملة - بدءاً من التشخيص عبر عياداتنا المتنقلة بالطاقة الشمسية، ووصولاً إلى الرعاية المتقدمة في المستشفيات المتخصصة.</span>
-                        </p>
-                        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-                            <div>
-                                <h3 class="title-md" style="color: var(--white);"><span class="en-only">Dr. PAWS Clinics</span><span class="ar-only">عيادات دكتور باوز</span></h3>
-                                <p style="color: rgba(255,255,255,0.8); font-size: 1.05rem;"><span class="en-only">Partnering for continuous, premium care across Riyadh.</span><span class="ar-only">شراكة لتقديم رعاية مستمرة ومتميزة في جميع أنحاء الرياض.</span></p>
-                            </div>
-                            <div>
-                                <h3 class="title-md" style="color: var(--white);"><span class="en-only">Elite Veterinary Hospitals</span><span class="ar-only">مستشفيات النخبة البيطرية</span></h3>
-                                <p style="color: rgba(255,255,255,0.8); font-size: 1.05rem;"><span class="en-only">Providing access to advanced surgical and specialized facilities.</span><span class="ar-only">توفير الوصول إلى مرافق جراحية متطورة ومنشآت متخصصة.</span></p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="img-reveal-wrap reveal reveal-delay-1" style="aspect-ratio: 3/4;">
-                        <!-- High quality Unsplash image of a majestic cat representing elite care -->
-                        <img loading="lazy" decoding="async" src="retouc_the_lady_skin_and_202606111029.jpeg?auto=format&fit=crop&q=80&w=1200" alt="Majestic Cat" class="img-editorial">
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- CLINIC INSIDE & OUTSIDE -->
-        <section class="section container">
-            <div class="grid-asym">
-                <div class="img-reveal-wrap reveal float-anim">
-                    <img loading="lazy" decoding="async" src="InsideVan.jpg" alt="Veterinarian with pet inside van" class="img-editorial">
-                </div>
-                <div class="reveal reveal-delay-1" style="padding: 2rem;">
-                    <h2 class="title-huge">
-                        <span class="en-only">Inside<br>The Van.</span>
-                        <span class="ar-only">من الداخل.</span>
-                    </h2>
-                    <p class="subtitle-lg">
-                        <span class="en-only">Our mission is to provide professional, compassionate veterinary care in the environment where pets feel most comfortable, supported by the best technology available.</span>
-                        <span class="ar-only">مهمتنا هي توفير رعاية بيطرية احترافية ورحيمة في البيئة التي يشعر فيها حيوانك الأليف بأكبر قدر من الراحة، مدعومة بأفضل التقنيات المتاحة.</span>
-                    </p>
-                </div>
-            </div>
-        </section>
-
-        <!-- ABOUT US MAP SECTION WITH SPECIFIC LOCATION -->
-        <section class="section container reveal">
-            <h2 class="title-xl text-center" style="margin-bottom: 2rem;">
-                <span class="en-only">Our Riyadh Service Area</span>
-                <span class="ar-only">نطاق خدمتنا في الرياض</span>
-            </h2>
-            <div class="map-container" style="overflow: hidden; height: 350px;">
-                <iframe loading="lazy" width="100%" height="100%" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://maps.google.com/maps?q=24.8337703,46.7354466&z=16&output=embed" style="border-radius: var(--radius-lg);"></iframe>
-            </div>
-        </section>
-
-        <!-- OUR TEAM -->
-        <section class="section container">
-            <h2 class="title-xl text-center reveal" style="margin-bottom: 3rem;">
-                <span class="en-only" style="color: var(--purple);">Our Experts</span>
-                <span class="ar-only" style="color: var(--purple);">خبراؤنا</span>
-            </h2>
-            <div style="max-width: 450px; margin: 0 auto;">
-                <div class="editorial-card reveal text-center">
-                    <div style="width: 150px; height: 150px; margin: 0 auto 1.5rem; border-radius: 50%; overflow: hidden; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
-                        <img loading="lazy" decoding="async" src="doc_img.jpeg" alt="Dr Abdelaziz Aguezlane " style="width: 100%; height: 100%; object-fit: cover;">
-                    </div>
-                    <h3 class="title-md"><span class="en-only">Dr Abdelaziz Aguezlane </span><span class="ar-only">د. عبدالعزيز أغزلان</span></h3>
-                    <p style="color: var(--purple); font-weight: 700; font-size: 1.1rem; margin-bottom: 0.8rem;"><span class="en-only">Doctor of Veterinary Medicine</span><span class="ar-only">دكتور في الطب البيطري</span></p>
-                    <p style="font-size: 1rem; color: var(--gray);"><span class="en-only">Clinical Medicine and Surgery<br>Experience: 6 Years</span><span class="ar-only">التخصص: الطب الباطني والجراحة السريرية<br>الخبرة: 6 سنوات</span></p>
-                </div>
-            </div>
-        </section>
-    
-        <section class="container" style="padding-bottom:4rem">
-            <div class="editorial-panel reveal" style="background:var(--black);color:var(--white);text-align:center">
-                <h2 class="title-xl" style="color:var(--white)"><span class="en-only">Veterinary care, brought closer to home.</span><span class="ar-only">رعاية بيطرية أقرب إلى بيتك.</span></h2>
-                <p class="subtitle-lg" style="color:rgba(255,255,255,.8);max-width:760px;margin:0 auto 1.5rem"><span class="en-only">Book a VETS VAN visit in Riyadh or contact our team if you need help choosing the right service.</span><span class="ar-only">احجز زيارة VETS VAN في الرياض، أو تواصل مع فريقنا إذا كنت تحتاج مساعدة في اختيار الخدمة المناسبة.</span></p>
-                <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap"><a href="/book/" class="btn btn-primary"><span class="en-only">Book Now</span><span class="ar-only">احجز الآن</span></a><a href="/contact/" class="btn btn-solar"><span class="en-only">Contact Us</span><span class="ar-only">تواصل معنا</span></a></div>
-            </div>
-        </section>
-</main>
-
-    <!-- PAGE 5: CONTACT US -->
-    <main id="contact" class="page">
-        <section class="section container">
-            <div class="editorial-panel" style="padding-top: 4rem; padding-bottom: 4rem;">
-                <div class="text-center reveal" style="margin-bottom: 3rem;">
-                    <h1 class="title-huge">
-                       <span class="en-only" style="color: var(--purple);">Get In Touch.</span>
-                       <span class="ar-only" style="color: var(--purple);">تواصل معنا.</span>
-                    </h1>
-                    <p class="subtitle-lg">
-                        <span class="en-only">Have a question or need assistance? Our team is ready to help.</span>
-                        <span class="ar-only">هل لديك استفسار أو تحتاج إلى مساعدة؟ فريقنا مستعد لخدمتك.</span>
-                    </p>
-                </div>
-
-                <div class="grid-asym">
-                    <div class="reveal">
-                        <div style="margin-bottom: 2rem;">
-                            <h4 style="font-size: 1.2rem; color: var(--gray); margin-bottom: 0.4rem;"><span class="en-only">Phone & WhatsApp</span><span class="ar-only">الهاتف والواتس اب</span></h4>
-                            <a href="tel:+966920011626" class="title-lg" style="margin:0;direction:ltr;text-align:left;display:inline-block;color:var(--black)">+966920011626</a>
-                        </div>
-                        <div style="margin-bottom: 2rem;">
-                            <h4 style="font-size: 1.2rem; color: var(--gray); margin-bottom: 0.4rem;"><span class="en-only">Email</span><span class="ar-only">البريد الإلكتروني</span></h4>
-                            <a href="mailto:Info@vetsvan.com" class="title-lg" style="margin:0;display:inline-block;color:var(--black)">Info@vetsvan.com</a>
-                        </div>
-                        <div>
-                            <h4 style="font-size: 1.2rem; color: var(--gray); margin-bottom: 0.4rem;"><span class="en-only">Location</span><span class="ar-only">الموقع</span></h4>
-                            <p class="title-md" style="margin: 0;">
-                                <span class="en-only">Riyadh,<br>Saudi Arabia</span>
-                                <span class="ar-only">الرياض،<br>المملكة العربية السعودية</span>
-                            </p>
-                            <!-- Contact page booking CTA -->
-                            <div style="margin-top:2rem"><a href="/book/" class="btn btn-primary"><span class="en-only">Book a Home Visit</span><span class="ar-only">احجز زيارة منزلية</span></a></div>
-                        </div>
-                    </div>
-                    
-                    <div class="editorial-card reveal reveal-delay-1" style="background: var(--bg-offwhite);">
-                        <h3 class="title-lg" style="margin-bottom: 1.5rem;">
-                            <span class="en-only">Send a Message</span>
-                            <span class="ar-only">إرسال رسالة</span>
-                        </h3>
-                        <div class="form-group">
-                            <label class="form-label"><span class="en-only">Full Name</span><span class="ar-only">الاسم الكامل</span></label>
-                            <input type="text" id="contactName" class="form-control en-only" placeholder="Your Name" style="background: var(--white);">
-                            <input type="text" id="contactNameAr" class="form-control ar-only" placeholder="أدخل اسمك" style="background: var(--white);">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label"><span class="en-only">Mobile Number</span><span class="ar-only">رقم الجوال</span></label>
-                            <input type="tel" id="contactPhone" class="form-control en-only" placeholder="05x xxx xxxx" style="background: var(--white);">
-                            <input type="tel" id="contactPhoneAr" class="form-control ar-only" placeholder="05x xxx xxxx" style="background: var(--white);">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label"><span class="en-only">Email</span><span class="ar-only">البريد الإلكتروني</span></label>
-                            <input type="email" id="contactEmail" class="form-control" placeholder="your@email.com" style="background: var(--white);">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label"><span class="en-only">Subject</span><span class="ar-only">الموضوع</span></label>
-                            <input type="text" id="contactSubject" class="form-control en-only" placeholder="How can we help?">
-                            <input type="text" id="contactSubjectAr" class="form-control ar-only" placeholder="كيف يمكننا مساعدتك؟">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label"><span class="en-only">Message</span><span class="ar-only">الرسالة</span></label>
-                            <textarea id="contactMessage" class="form-control en-only" rows="4" placeholder="Your message..." style="background: var(--white);"></textarea>
-                            <textarea id="contactMessageAr" class="form-control ar-only" rows="4" placeholder="اكتب رسالتك هنا..." style="background: var(--white);"></textarea>
-                        </div>
-                        <button class="btn btn-primary btn-block" onclick="submitContactForm()" style="padding: 16px;">
-                            <span class="en-only">Send Message</span>
-                            <span class="ar-only">إرسال الرسالة</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="section container reveal">
-            <h2 class="title-xl text-center" style="margin-bottom: 2rem;">
-                <span class="en-only">VETS VAN in Riyadh</span>
-                <span class="ar-only">VETS VAN في الرياض</span>
-            </h2>
-            <div class="map-container" style="overflow: hidden; height: 350px;">
-                <iframe loading="lazy" width="100%" height="100%" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://maps.google.com/maps?q=24.8337703,46.7354466&z=16&output=embed" style="border-radius: var(--radius-lg);"></iframe>
-            </div>
-        </section>
-    </main>
-
-    <!-- FOOTER -->
+<!-- PAGE 4: ABOUT US -->
+<!-- PAGE 5: CONTACT US -->
+<!-- FOOTER -->
     <footer>
         <div class="container reveal">
             <div class="grid-asym">
                 <div>
                     <div style="background-color: var(--white); display: inline-flex; padding: 12px 20px; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
-                        <img src="Vets_van_logo_png.png" alt="VETS VAN Logo" style="height: 38px;">
+                        <img src="/Vets_van_logo_png.png" alt="VETS VAN Logo" style="height: 38px;">
                     </div>
                     
                     <h2 class="title-xl" style="color: var(--white); max-width: 450px; margin-bottom: 1.5rem; font-size: 2rem;">
@@ -1412,8 +1114,9 @@
             initScrollObserver();
 
             const initialPage = location.hash.replace('#', '');
-            if (['book', 'services', 'about', 'contact'].includes(initialPage)) {
-                navTo(initialPage, false);
+            const legacyRoutes = { book: '/book/', services: '/services/', about: '/about/', contact: '/contact/' };
+            if (legacyRoutes[initialPage] && location.pathname === '/') {
+                window.location.replace(legacyRoutes[initialPage]);
             }
         });
 
@@ -1463,7 +1166,8 @@
 
         window.addEventListener('popstate', () => {
             const route = location.hash.replace('#', '');
-            navTo(['book', 'services', 'about', 'contact'].includes(route) ? route : 'home', false);
+            const legacyRoutes = { book: '/book/', services: '/services/', about: '/about/', contact: '/contact/' };
+            if (legacyRoutes[route] && location.pathname === '/') window.location.replace(legacyRoutes[route]);
         });
 
         function toggleMenu() {
@@ -1607,7 +1311,7 @@
         // إعادة ضبط الحجز والعودة للرئيسية
         function resetBookingAndGoHome() {
             nextStep(1);
-            navTo('home');
+            window.location.href = '/';
         }
 
         // ===== Production payment flow: booking -> pending_payment -> MyFatoorah redirect =====

@@ -66,17 +66,19 @@
 
   function applyDeepLink() {
     const cleanPath = location.pathname.replace(/\/+$/, '') || '/';
-    const pathPage = cleanPath === '/book' ? 'book' : '';
-    const hashPage = location.hash.replace(/^#/, '');
-    const id = pathPage || hashPage;
-    if (!['home', 'book', 'services', 'about', 'contact'].includes(id)) return;
-    if (typeof window.navTo === 'function') {
-      try { window.navTo(id, false); } catch {
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.getElementById(id)?.classList.add('active');
-        window.scrollTo(0, 0);
+    if (cleanPath === '/book') {
+      if (typeof window.navTo === 'function') {
+        try { window.navTo('book', false); } catch {
+          document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+          document.getElementById('book')?.classList.add('active');
+          window.scrollTo(0, 0);
+        }
       }
+      return;
     }
+    const hashPage = location.hash.replace(/^#/, '');
+    const legacyRoutes = { book: '/book/', services: '/services/', about: '/about/', contact: '/contact/' };
+    if (cleanPath === '/' && legacyRoutes[hashPage]) window.location.replace(legacyRoutes[hashPage]);
   }
 
   function init() {
