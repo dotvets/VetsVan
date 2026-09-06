@@ -1,0 +1,44 @@
+name: Build Arabic SEO pages
+on:
+  push:
+    paths:
+      - '.github/workflows/build-arabic-seo.yml'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Arabic pages
+        run: python scripts/build-arabic-seo.py
+      - name: Verify Arabic SEO
+        run: |
+          set -e
+          test -f ar/index.html
+          test -f ar/services/index.html
+          test -f ar/about/index.html
+          test -f ar/contact/index.html
+          test -f ar/services/vaccinations/index.html
+          test -f ar/services/dental-cleaning/index.html
+          test -f ar/services/diagnostic-imaging/index.html
+          test -f ar/services/pet-travel-certificate/index.html
+          grep -q '<html lang="ar" dir="rtl">' ar/index.html
+          grep -q 'عيادة بيطرية متنقلة في الرياض' ar/index.html
+          grep -q 'hreflang="ar" href="https://www.vetsvan.com/ar/"' index.html
+          grep -q 'hreflang="ar" href="https://www.vetsvan.com/ar/services/"' services/index.html
+          grep -q 'hreflang="ar" href="https://www.vetsvan.com/ar/services/vaccinations/"' services/vaccinations/index.html
+          grep -q 'https://www.vetsvan.com/ar/book/' sitemap.xml
+          grep -Fq "['/book', '/ar/book'].includes(cleanPath)" booking-source.js
+          grep -Fq "app.get(['/ar/book', '/ar/book/']" server/index.js
+          node --check server/index.js
+          node --check booking-source.js
+      - name: Commit generated pages
+        run: |
+          git config user.name "Mohamed-Omaar"
+          git config user.email "mohamed.mostafa.omaar@gmail.com"
+          git add index.html services/index.html about/index.html contact/index.html services/*/index.html ar booking-source.js server/index.js sitemap.xml
+          git commit -m "Add indexable Arabic site structure"
+          git rm .github/workflows/build-arabic-seo.yml scripts/build-arabic-seo.py
+          git commit -m "Remove temporary Arabic SEO tooling"
+          git push
