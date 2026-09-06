@@ -66,7 +66,7 @@
 
   function applyDeepLink() {
     const cleanPath = location.pathname.replace(/\/+$/, '') || '/';
-    if (cleanPath === '/book') {
+    if (['/book', '/ar/book'].includes(cleanPath)) {
       if (typeof window.navTo === 'function') {
         try { window.navTo('book', false); } catch {
           document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
