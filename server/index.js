@@ -416,6 +416,11 @@ app.post('/api/admin/payments/:bookingCode/verify', ...protect('bookings:write')
 app.get(['/book', '/book/'], async (_req, res) => {
   try {
     let html = await fs.readFile(path.join(__dirname, '..', 'index.html'), 'utf8');
+    // Keep /book/ focused while reusing the one canonical booking implementation.
+    for (const pageId of ['home', 'services', 'about', 'contact']) {
+      html = html.replace(new RegExp(`<main id=[\"']${pageId}[\"'][^>]*>[\s\S]*?<\/main>`, 'i'), '');
+    }
+    if (!/<base\s/i.test(html)) html = html.replace(/<head>/i, '<head>\n    <base href="/">');
     const title = 'Book a Mobile Vet Visit in Riyadh | VETS VAN';
     const description = 'Book a VETS VAN mobile veterinary visit in Riyadh. Appointment availability and booking source are managed live by the clinic.';
     const canonical = 'https://www.vetsvan.com/book/';
